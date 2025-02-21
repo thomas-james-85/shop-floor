@@ -44,7 +44,6 @@ export async function POST(req: Request) {
     if (password !== storedPassword) {
       return NextResponse.json({ error: "Invalid password" }, { status: 401 });
     }
-
     // Successful login, return terminal details
     return NextResponse.json({
       success: true,

@@ -8,21 +8,20 @@ import { useTerminal } from "@/contexts/terminalContext"; // Import the context 
 import { TerminalData } from "@/types";
 
 export default function TerminalLogin() {
-  const { setTerminalData } = useTerminal(); // Access context to update state
+  const { terminalData, setTerminalData } = useTerminal(); // Access context to update state
   const [terminalId, setTerminalId] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-
   const handleLogin = async () => {
     setError("");
-
     if (!terminalId || !password) {
       setError("Please enter Terminal ID and Password");
       return;
     }
 
     try {
-      const response = await fetch("/api/terminal/login", { //run api
+      const response = await fetch("/api/terminal/login", {
+        //run api
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -32,15 +31,16 @@ export default function TerminalLogin() {
       });
 
       const data: TerminalData = await response.json(); // set data to response from api
-
       if (!response.ok) {
         setError(data.error || "Login failed");
+        console.log("api error");
         return;
       }
+      console.log("1st data log:", data);
 
       // Store login session in localStorage
       localStorage.setItem("terminalData", JSON.stringify(data));
-
+      console.log("2nd data log:", data);
       // Update global terminal state
       setTerminalData({
         terminalId: data.terminalId,
@@ -48,7 +48,9 @@ export default function TerminalLogin() {
         operationCode: data.operationCode,
         loggedInUser: data.loggedInUser,
         terminalState: data.terminalState || "IDLE",
-        lastStateChange: data.lastStateChange,
+        lastStateChange: data.lastStateChange
+          ? new Date(data.lastStateChange)
+          : null, // Convert string Date type
       });
     } catch {
       setError("Server error, please try again.");
@@ -78,6 +80,7 @@ export default function TerminalLogin() {
           <Button className="w-full" onClick={handleLogin}>
             Login
           </Button>
+          <p>{terminalData.terminalName}</p>
         </CardContent>
       </Card>
     </div>

@@ -7,7 +7,7 @@ import { useTerminal } from "@/contexts/terminalContext"; // Import the context 
 
 export default function LoginPage() {
   const router = useRouter();
-  const { terminalData } = useTerminal(); // Get terminal state from context
+  const { terminalData, setTerminalData } = useTerminal(); // Get terminal state from context
 
   // Redirect if terminal is already logged in
   useEffect(() => {
