@@ -3,6 +3,7 @@ import { useTerminal, terminalActions } from "@/contexts/terminalContext";
 import { Button } from "@/components/ui/button";
 import InspectionDialog from "@/components/InspectionDialog";
 import OperatorAuthDialog from "@/components/OperatorAuthDialog";
+import CompletionDialog from "@/components/CompletionDialog";
 
 export default function StateControlButtons() {
   const { state, dispatch } = useTerminal();
@@ -11,6 +12,7 @@ export default function StateControlButtons() {
   // State for dialog visibility
   const [showInspectionDialog, setShowInspectionDialog] = useState(false);
   const [showOperatorAuthDialog, setShowOperatorAuthDialog] = useState(false);
+  const [showCompletionDialog, setShowCompletionDialog] = useState(false);
 
   // Don't render if no job is loaded
   if (!state.currentJob) return null;
@@ -58,6 +60,34 @@ export default function StateControlButtons() {
     setShowOperatorAuthDialog(false);
   };
 
+  // Handle job completion
+  const handleJobComplete = (completedQty: number) => {
+    console.log(`Job completed with quantity: ${completedQty}`);
+
+    // Here you would typically make an API call to log the completion
+    // For now, we'll just log to console
+    console.log("Logging job completion:", {
+      terminalId: state.terminal.terminalId,
+      jobId: state.currentJob?.route_card,
+      operatorName: state.terminal.loggedInUser,
+      completedQty: completedQty,
+      timestamp: new Date().toISOString(),
+    });
+
+    // Clear user
+    dispatch(terminalActions.setLoggedInUser(null));
+    localStorage.removeItem("loggedUser");
+
+    // Clear job
+    dispatch(terminalActions.resetJob());
+
+    // Reset terminal state
+    dispatch(terminalActions.setTerminalState("IDLE"));
+
+    // Close completion dialog
+    setShowCompletionDialog(false);
+  };
+
   const handleAbandon = () => {
     // Clear user
     dispatch(terminalActions.setLoggedInUser(null));
@@ -83,10 +113,10 @@ export default function StateControlButtons() {
           </Button>
         )}
 
-        {/* Running Complete button */}
+        {/* Running Complete button - now opens completion dialog */}
         {terminalState === "RUNNING" && (
           <Button
-            onClick={() => dispatch(terminalActions.setTerminalState("IDLE"))}
+            onClick={() => setShowCompletionDialog(true)}
             className="bg-green-500 hover:bg-green-600 text-white"
           >
             Running Complete
@@ -158,6 +188,14 @@ export default function StateControlButtons() {
         <OperatorAuthDialog
           onAuthenticated={handleOperatorAuthenticated}
           onCancel={() => setShowOperatorAuthDialog(false)}
+        />
+      )}
+
+      {/* Job Completion Dialog */}
+      {showCompletionDialog && (
+        <CompletionDialog
+          onComplete={handleJobComplete}
+          onCancel={() => setShowCompletionDialog(false)}
         />
       )}
     </>
