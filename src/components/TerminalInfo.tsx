@@ -22,12 +22,19 @@ export default function TerminalInfo() {
 
   // Update elapsed time every second
   useEffect(() => {
-    if (!state.terminal.lastStateChange) return;
+    if (!state.terminal.lastStateChange) {
+      // Set a default value or return early
+      setTimeSinceChange("0m 0s");
+      return;
+    }
 
     const updateTimer = () => {
+      // In src/components/TerminalInfo.tsx, modify line 30
       const diffInSeconds = Math.floor(
         (new Date().getTime() -
-          new Date(state.terminal.lastStateChange).getTime()) /
+          (state.terminal.lastStateChange
+            ? new Date(state.terminal.lastStateChange).getTime()
+            : new Date().getTime())) /
           1000
       );
       setTimeSinceChange(

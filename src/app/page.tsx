@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
 import TerminalLogin from "@/components/TerminalLogin";
 import TerminalInfo from "@/components/TerminalInfo";
 import ScanJobDialog from "@/components/ScanJobDialog";
@@ -16,7 +15,6 @@ export default function HomePage() {
   const [userDialogRole, setUserDialogRole] = useState<
     "can_operate" | "can_setup" | "can_inspect" | "can_remanufacture"
   >("can_setup");
-  const router = useRouter();
 
   // Determine when to show user authentication dialog
   useEffect(() => {

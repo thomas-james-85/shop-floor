@@ -47,15 +47,15 @@ export default function TerminalLogin() {
       console.log("Terminal login response:", data);
 
       // Update global terminal state using our new reducer
-      dispatch(
-        terminalActions.login({
-          terminalId: parseInt(terminalId),
-          terminalName: data.terminal_name,
-          operationCode: data.operation_code,
-          terminalState: "IDLE",
-          lastStateChange: new Date(),
-        })
-      );
+      // Add the type annotation to make it explicit
+      const loginData: Partial<TerminalData> = {
+        terminalId: parseInt(terminalId),
+        terminalName: data.terminal_name,
+        operationCode: data.operation_code,
+        terminalState: "IDLE",
+        lastStateChange: new Date(),
+      };
+      dispatch(terminalActions.login(loginData));
 
       // Clear form after successful login
       setTerminalId("");
