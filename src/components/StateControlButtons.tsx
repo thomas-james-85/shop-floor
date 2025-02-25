@@ -1,3 +1,4 @@
+// src/components/StateControlButtons.tsx
 import { useState } from "react";
 import { useTerminal, terminalActions } from "@/contexts/terminalContext";
 import { Button } from "@/components/ui/button";
@@ -15,6 +16,7 @@ export default function StateControlButtons() {
   const [showOperatorAuthDialog, setShowOperatorAuthDialog] = useState(false);
   const [showCompletionDialog, setShowCompletionDialog] = useState(false);
   const [showPauseDialog, setShowPauseDialog] = useState(false);
+  const [isResuming, setIsResuming] = useState(false);
   const [inspectionType, setInspectionType] = useState<
     "1st_off" | "in_process"
   >("1st_off");
@@ -35,7 +37,7 @@ export default function StateControlButtons() {
     inspector: string,
     comments: string
   ) => {
-    // Log inspection details (in a real app, this would be an API call)
+    // Log inspection completion info
     console.log(
       `${
         inspectionType === "1st_off" ? "First-off" : "In-process"
@@ -52,12 +54,13 @@ export default function StateControlButtons() {
     } else {
       // Failed inspection handling
       if (inspectionType === "in_process") {
-        // For in-process inspection failures, stay in INSPECTION_REQUIRED state
+        // For in-process inspection failures, stay in RUNNING state
         alert(
           "In-process inspection failed. Please correct the issues and try again."
         );
       } else {
-        // For first-off inspection failures, stay in SETUP state
+        // For first-off inspection failures, update terminal state back to SETUP
+        dispatch(terminalActions.setTerminalState("SETUP"));
         alert(
           "First-off inspection failed. Please correct the setup issues and try again."
         );
@@ -75,21 +78,14 @@ export default function StateControlButtons() {
 
     // Close operator auth dialog
     setShowOperatorAuthDialog(false);
+
+    // Reset resume flag
+    setIsResuming(false);
   };
 
   // Handle job completion
   const handleJobComplete = (completedQty: number) => {
     console.log(`Job completed with quantity: ${completedQty}`);
-
-    // Here you would typically make an API call to log the completion
-    // For now, we'll just log to console
-    console.log("Logging job completion:", {
-      terminalId: state.terminal.terminalId,
-      jobId: state.currentJob?.route_card,
-      operatorName: state.terminal.loggedInUser,
-      completedQty: completedQty,
-      timestamp: new Date().toISOString(),
-    });
 
     // Clear user
     dispatch(terminalActions.setLoggedInUser(null));
@@ -106,19 +102,7 @@ export default function StateControlButtons() {
   };
 
   // Handle pause operation
-  const handlePause = (reason: string) => {
-    // Log pause reason (in a real app, this would be an API call)
-    console.log("Pausing operation. Reason:", reason);
-
-    // Log the pause event with the current user
-    console.log("Logging pause:", {
-      terminalId: state.terminal.terminalId,
-      jobId: state.currentJob?.route_card,
-      operatorName: state.terminal.loggedInUser,
-      reason: reason,
-      timestamp: new Date().toISOString(),
-    });
-
+  const handlePause = (pauseReason: string) => {
     // Log out the current user
     dispatch(terminalActions.setLoggedInUser(null));
     localStorage.removeItem("loggedUser");
@@ -132,24 +116,11 @@ export default function StateControlButtons() {
 
   // Handle resume operation
   const handleResume = () => {
+    // Set resuming flag for OperatorAuthDialog
+    setIsResuming(true);
+
     // Show operator authentication dialog
     setShowOperatorAuthDialog(true);
-
-    // After successful authentication, the operator will be logged in
-    // and the terminal state will change to INSPECTION_REQUIRED
-    // This is handled in the handleOperatorAuthenticated function with a slight modification
-  };
-
-  // Override operator authenticated for resume workflow
-  const handleResumeOperatorAuthenticated = (operatorName: string) => {
-    // Update terminal with operator name
-    dispatch(terminalActions.setLoggedInUser(operatorName));
-
-    // Change state to INSPECTION_REQUIRED instead of RUNNING for the resume workflow
-    dispatch(terminalActions.setTerminalState("INSPECTION_REQUIRED"));
-
-    // Close operator auth dialog
-    setShowOperatorAuthDialog(false);
   };
 
   const handleAbandon = () => {
@@ -157,18 +128,13 @@ export default function StateControlButtons() {
     dispatch(terminalActions.setLoggedInUser(null));
     localStorage.removeItem("loggedUser");
 
-    // Clear job
+    // Clear job and active log tracking
     dispatch(terminalActions.resetJob());
+    dispatch(terminalActions.clearActiveLog());
 
     // Reset terminal state
     dispatch(terminalActions.setTerminalState("IDLE"));
   };
-
-  // Determine which operator auth handler to use based on terminal state
-  const operatorAuthHandler =
-    terminalState === "PAUSED"
-      ? handleResumeOperatorAuthenticated
-      : handleOperatorAuthenticated;
 
   return (
     <>
@@ -268,8 +234,12 @@ export default function StateControlButtons() {
       {/* Operator Authentication Dialog */}
       {showOperatorAuthDialog && (
         <OperatorAuthDialog
-          onAuthenticated={operatorAuthHandler}
-          onCancel={() => setShowOperatorAuthDialog(false)}
+          onAuthenticated={handleOperatorAuthenticated}
+          onCancel={() => {
+            setShowOperatorAuthDialog(false);
+            setIsResuming(false);
+          }}
+          isResume={isResuming}
         />
       )}
 

@@ -1,3 +1,4 @@
+// src/components/OperatorAuthDialog.tsx
 "use client";
 
 import { useState } from "react";
@@ -6,16 +7,20 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { authenticateUser } from "@/utils/authenticateUser";
 import { useTerminal, terminalActions } from "@/contexts/terminalContext";
+import { startRunningLog, resumeJob } from "@/utils/jobLogs";
 
 type OperatorAuthDialogProps = {
   onAuthenticated: (operatorName: string) => void;
   onCancel: () => void;
+  isResume?: boolean; // Flag to indicate if this is for resuming a paused job
 };
 
 export default function OperatorAuthDialog({
   onAuthenticated,
   onCancel,
+  isResume = false,
 }: OperatorAuthDialogProps) {
+  const { state, dispatch } = useTerminal();
   const [employeeId, setEmployeeId] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -36,6 +41,44 @@ export default function OperatorAuthDialog({
         setError(result.error || "Authentication failed");
         setLoading(false);
         return;
+      }
+
+      // Create appropriate log entry based on context
+      if (state.currentJob) {
+        if (
+          isResume &&
+          state.activeLogId &&
+          state.activeLogState === "PAUSED"
+        ) {
+          // Resuming from PAUSED state
+          const logResult = await resumeJob(
+            state.activeLogId,
+            state.currentJob,
+            state.terminal,
+            employeeId
+          );
+
+          if (logResult.success && logResult.running_log_id) {
+            dispatch(
+              terminalActions.setActiveLog(logResult.running_log_id, "RUNNING")
+            );
+          } else {
+            console.error("Failed to create resume log:", logResult.error);
+          }
+        } else if (!isResume) {
+          // Normal transition to RUNNING after inspection
+          const logResult = await startRunningLog(
+            state.currentJob,
+            state.terminal,
+            employeeId
+          );
+
+          if (logResult.success && logResult.log_id) {
+            dispatch(terminalActions.setActiveLog(logResult.log_id, "RUNNING"));
+          } else {
+            console.error("Failed to create running log:", logResult.error);
+          }
+        }
       }
 
       // Call the onAuthenticated callback with the operator name
@@ -61,7 +104,9 @@ export default function OperatorAuthDialog({
         <CardContent className="flex flex-col items-center space-y-4">
           <h2 className="text-xl font-bold mb-4">Operator Authentication</h2>
           <p className="text-center mb-4">
-            Inspection passed! Please scan operator ID to begin production
+            {isResume
+              ? "Please scan operator ID to resume production"
+              : "Inspection passed! Please scan operator ID to begin production"}
           </p>
 
           {error && <p className="text-red-500 text-sm">{error}</p>}

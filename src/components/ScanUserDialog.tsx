@@ -1,3 +1,4 @@
+// src/components/ScanUserDialog.tsx
 "use client";
 
 import { useState } from "react";
@@ -6,6 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useTerminal, terminalActions } from "@/contexts/terminalContext";
+import { startSetupLog, startRunningLog } from "@/utils/jobLogs"; // Import our new logging functions
 
 type ScanUserDialogProps = {
   roleRequired:
@@ -20,7 +22,7 @@ export default function ScanUserDialog({
   roleRequired,
   onCancel,
 }: ScanUserDialogProps) {
-  const { dispatch } = useTerminal();
+  const { state, dispatch } = useTerminal();
   const [employeeId, setEmployeeId] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -56,13 +58,45 @@ export default function ScanUserDialog({
       // Store in localStorage
       localStorage.setItem("loggedUser", result.name || "");
 
-      // Update terminal state based on role
-      if (roleRequired === "can_setup") {
+      // Create the appropriate log entry based on role
+      if (roleRequired === "can_setup" && state.currentJob) {
+        // Create a SETUP log
+        const logResult = await startSetupLog(
+          state.currentJob,
+          state.terminal,
+          employeeId
+        );
+
+        if (logResult.success && logResult.log_id) {
+          // Store the active log ID in context
+          dispatch(terminalActions.setActiveLog(logResult.log_id, "SETUP"));
+        } else {
+          console.error("Failed to create setup log:", logResult.error);
+        }
+
+        // Update terminal state
         dispatch(terminalActions.setTerminalState("SETUP"));
-      } else if (roleRequired === "can_operate") {
+      } else if (
+        roleRequired === "can_operate" &&
+        state.terminal.terminalState === "INSPECTION_REQUIRED" &&
+        state.currentJob
+      ) {
+        // Transitioning to RUNNING after inspection
+        const logResult = await startRunningLog(
+          state.currentJob,
+          state.terminal,
+          employeeId
+        );
+
+        if (logResult.success && logResult.log_id) {
+          // Store the active log ID in context
+          dispatch(terminalActions.setActiveLog(logResult.log_id, "RUNNING"));
+        } else {
+          console.error("Failed to create running log:", logResult.error);
+        }
+
+        // Update terminal state
         dispatch(terminalActions.setTerminalState("RUNNING"));
-      } else if (roleRequired === "can_inspect") {
-        dispatch(terminalActions.setTerminalState("INSPECTION_REQUIRED"));
       }
 
       // Clear form

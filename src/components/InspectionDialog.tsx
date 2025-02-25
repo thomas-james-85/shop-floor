@@ -1,3 +1,4 @@
+// src/components/InspectionDialog.tsx
 "use client";
 
 import { useState } from "react";
@@ -6,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { authenticateUser } from "@/utils/authenticateUser";
 import { useTerminal, terminalActions } from "@/contexts/terminalContext";
+import { endSetupStartInspection, completeInspection } from "@/utils/jobLogs";
 
 type InspectionType = "1st_off" | "in_process";
 
@@ -20,12 +22,15 @@ export default function InspectionDialog({
   onComplete,
   onCancel,
 }: InspectionDialogProps) {
+  const { state, dispatch } = useTerminal();
   const [step, setStep] = useState<"auth" | "inspection">("auth");
   const [employeeId, setEmployeeId] = useState("");
   const [comments, setComments] = useState("");
+  const [inspectionQty, setInspectionQty] = useState<string>("1");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [inspector, setInspector] = useState("");
+  const [inspectionLogId, setInspectionLogId] = useState<number | null>(null);
 
   const handleInspectorScan = async () => {
     if (!employeeId.trim()) {
@@ -45,8 +50,53 @@ export default function InspectionDialog({
         return;
       }
 
-      // Set inspector name and move to inspection step
+      // Set inspector name
       setInspector(result.name || "");
+
+      // Handle different log creation based on inspection type
+      if (inspectionType === "1st_off" && state.activeLogId && state.activeLogState === "SETUP") {
+        // If this is a first-off inspection, we're completing a setup and starting inspection
+        const logResult = await endSetupStartInspection(
+          state.activeLogId,
+          state.currentJob!,
+          state.terminal,
+          employeeId,
+          "1st_off"
+        );
+
+        if (logResult.success && logResult.inspection_log_id) {
+          setInspectionLogId(logResult.inspection_log_id);
+          dispatch(terminalActions.setActiveLog(logResult.inspection_log_id, "INSPECTION"));
+        } else {
+          console.error("Failed to create inspection log:", logResult.error);
+        }
+      } else if (inspectionType === "in_process" && state.currentJob) {
+        // For in-process inspections, create a standalone inspection log
+        const lookup_code = `${state.currentJob.route_card}-${state.currentJob.op_code}`;
+        
+        const response = await fetch("/api/logs/job", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            lookup_code,
+            user_id: employeeId,
+            terminal_id: state.terminal.terminalId,
+            state: "INSPECTION",
+            inspection_type: "in_process",
+            start_time: new Date().toISOString(),
+          }),
+        });
+
+        const data = await response.json();
+        
+        if (data.success && data.log_id) {
+          setInspectionLogId(data.log_id);
+          // We don't change activeLogId for in-process inspections
+          // since the RUNNING log should still be active
+        }
+      }
+
+      // Move to inspection step
       setStep("inspection");
     } catch (error) {
       console.error("Authentication Error:", error);
@@ -57,11 +107,38 @@ export default function InspectionDialog({
     }
   };
 
-  const handleInspectionPass = () => {
+  const handleInspectionPass = async () => {
+    if (inspectionLogId) {
+      // Complete the inspection log
+      await completeInspection(
+        inspectionLogId,
+        true, // passed
+        comments,
+        inspectionType === "in_process" ? Number(inspectionQty) || 1 : 1
+      );
+
+      // If this was a first-off inspection, update the terminal state
+      if (inspectionType === "1st_off") {
+        dispatch(terminalActions.setTerminalState("INSPECTION_REQUIRED"));
+      }
+    }
+
+    // Call the onComplete handler from parent component
     onComplete(true, inspector, comments);
   };
 
-  const handleInspectionFail = () => {
+  const handleInspectionFail = async () => {
+    if (inspectionLogId) {
+      // Complete the inspection log with fail status
+      await completeInspection(
+        inspectionLogId,
+        false, // failed
+        comments,
+        inspectionType === "in_process" ? Number(inspectionQty) || 1 : 1
+      );
+    }
+
+    // Call the onComplete handler from parent component
     onComplete(false, inspector, comments);
   };
 
@@ -130,6 +207,21 @@ export default function InspectionDialog({
               </p>
 
               <div className="w-full">
+                {inspectionType === "in_process" && (
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Inspection Quantity:
+                    </label>
+                    <Input
+                      type="number"
+                      min="1"
+                      value={inspectionQty}
+                      onChange={(e) => setInspectionQty(e.target.value)}
+                      className="w-full"
+                    />
+                  </div>
+                )}
+
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Inspection Comments:
                 </label>

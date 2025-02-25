@@ -1,3 +1,4 @@
+// src/components/CompletionDialog.tsx
 "use client";
 
 import { useState } from "react";
@@ -5,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useTerminal, terminalActions } from "@/contexts/terminalContext";
+import { completeRunningLog } from "@/utils/jobLogs";
 
 type CompletionDialogProps = {
   onComplete: (completedQty: number) => void;
@@ -15,11 +17,12 @@ export default function CompletionDialog({
   onComplete,
   onCancel,
 }: CompletionDialogProps) {
-  const { state } = useTerminal();
+  const { state, dispatch } = useTerminal();
   const [completedQty, setCompletedQty] = useState<string>("");
   const [error, setError] = useState<string>("");
+  const [isLogging, setIsLogging] = useState<boolean>(false);
 
-  const handleComplete = () => {
+  const handleComplete = async () => {
     // Validate input
     if (!completedQty.trim()) {
       setError("Please enter a quantity");
@@ -31,6 +34,34 @@ export default function CompletionDialog({
     if (isNaN(qty) || qty <= 0) {
       setError("Please enter a valid positive number");
       return;
+    }
+
+    // If we have an active running log, update it
+    if (state.activeLogId && state.activeLogState === "RUNNING") {
+      setIsLogging(true);
+
+      try {
+        const logResult = await completeRunningLog(state.activeLogId, qty);
+
+        if (!logResult.success) {
+          console.error("Failed to complete running log:", logResult.error);
+          setError("Failed to log completion data. Please try again.");
+          setIsLogging(false);
+          return;
+        }
+
+        // Clear active log in context
+        dispatch(terminalActions.clearActiveLog());
+      } catch (error) {
+        console.error("Error completing running log:", error);
+        setError("An error occurred. Please try again.");
+        setIsLogging(false);
+        return;
+      }
+
+      setIsLogging(false);
+    } else {
+      console.warn("No active running log found for completion");
     }
 
     // Call the onComplete callback with the completed quantity
@@ -90,12 +121,14 @@ export default function CompletionDialog({
             <Button
               onClick={handleComplete}
               className="bg-green-500 hover:bg-green-600 text-white"
+              disabled={isLogging}
             >
-              Complete Job
+              {isLogging ? "Logging..." : "Complete Job"}
             </Button>
             <Button
               onClick={onCancel}
               className="bg-gray-500 hover:bg-gray-600 text-white"
+              disabled={isLogging}
             >
               Cancel
             </Button>

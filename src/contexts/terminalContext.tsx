@@ -9,13 +9,15 @@ import {
 } from "react";
 import { TerminalData, JobData } from "@/types";
 
-// Define the complete application state
+// Extend the AppState interface to include log IDs
 type AppState = {
   terminal: TerminalData;
   currentJob: JobData | null;
   isLoadingJob: boolean;
   isLoadingUser: boolean;
   error: string | null;
+  activeLogId: number | null; // Add this to track the current active log
+  activeLogState: "SETUP" | "RUNNING" | "PAUSED" | "INSPECTION" | null; // The state of the active log
 };
 
 // Define all possible action types
@@ -29,9 +31,14 @@ type ActionType =
   | { type: "SET_ERROR"; payload: string | null }
   | { type: "RESET_TERMINAL" }
   | { type: "RESET_JOB" }
-  | { type: "RESET_STATE" };
+  | { type: "RESET_STATE" }
+  | {
+      type: "SET_ACTIVE_LOG";
+      payload: { logId: number | null; logState: AppState["activeLogState"] };
+    }
+  | { type: "CLEAR_ACTIVE_LOG" };
 
-// Initial state
+// Update the initial state
 const initialState: AppState = {
   terminal: {
     terminalId: null,
@@ -45,6 +52,8 @@ const initialState: AppState = {
   isLoadingJob: false,
   isLoadingUser: false,
   error: null,
+  activeLogId: null,
+  activeLogState: null,
 };
 
 // The reducer function to handle all state updates
@@ -132,6 +141,31 @@ function terminalReducer(state: AppState, action: ActionType): AppState {
         },
         currentJob: null,
         error: null,
+      };
+
+    case "SET_ACTIVE_LOG":
+      return {
+        ...state,
+        activeLogId: action.payload.logId,
+        activeLogState: action.payload.logState,
+      };
+
+    case "CLEAR_ACTIVE_LOG":
+      return {
+        ...state,
+        activeLogId: null,
+        activeLogState: null,
+      };
+
+    // When resetting the terminal, also clear the active log
+    case "RESET_TERMINAL":
+    case "RESET_JOB":
+    case "RESET_STATE":
+      return {
+        ...state,
+        activeLogId: null,
+        activeLogState: null,
+        // (rest of reset logic remains the same)
       };
 
     default:
@@ -239,5 +273,14 @@ export const terminalActions = {
   setError: (error: string | null) => ({
     type: "SET_ERROR" as const,
     payload: error,
+  }),
+
+  setActiveLog: (logId: number, logState: AppState["activeLogState"]) => ({
+    type: "SET_ACTIVE_LOG" as const,
+    payload: { logId, logState },
+  }),
+
+  clearActiveLog: () => ({
+    type: "CLEAR_ACTIVE_LOG" as const,
   }),
 };
