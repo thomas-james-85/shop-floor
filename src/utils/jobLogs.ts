@@ -31,6 +31,14 @@ interface JobLogResponse {
   error?: string;
 }
 
+type ApiResponse = {
+  success: boolean;
+  log_id?: number;
+  error?: string;
+  logs?: Array<Record<string, unknown>>;
+  message?: string;
+};
+
 /**
  * Create a new job log entry
  */
@@ -44,13 +52,13 @@ export const createJobLog = async (
       start_time: params.start_time || new Date().toISOString(),
     };
 
-    const response = await fetch("/api/logs/job", {
+    const response = await fetch("/api/logs/jobs", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(logParams),
     });
 
-    const data = await response.json();
+    const data = (await response.json()) as ApiResponse;
 
     if (!response.ok) {
       console.error("Failed to create job log:", data.error);
@@ -73,14 +81,16 @@ export const updateJobLog = async (
 ): Promise<JobLogResponse> => {
   try {
     // Create a clean object for sending to the API
-    const cleanParams: Record<string, any> = { ...updateParams };
+    const cleanParams: Record<string, string | number | boolean | null> = {
+      ...updateParams,
+    };
 
     // Convert boolean end_time to ISO string if it's true
     if (updateParams.end_time === true) {
       cleanParams.end_time = new Date().toISOString();
     }
 
-    const response = await fetch("/api/logs/job", {
+    const response = await fetch("/api/logs/jobs", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -89,7 +99,7 @@ export const updateJobLog = async (
       }),
     });
 
-    const data = await response.json();
+    const data = (await response.json()) as ApiResponse;
 
     if (!response.ok) {
       console.error("Failed to update job log:", data.error);
@@ -109,7 +119,11 @@ export const updateJobLog = async (
 export const getCurrentJobLog = async (
   lookup_code: string,
   state?: "SETUP" | "RUNNING" | "PAUSED" | "INSPECTION"
-): Promise<{ success: boolean; log?: any; error?: string }> => {
+): Promise<{
+  success: boolean;
+  log?: Record<string, unknown>;
+  error?: string;
+}> => {
   try {
     let url = `/api/logs/job?lookup_code=${encodeURIComponent(lookup_code)}`;
     if (state) {
@@ -117,7 +131,7 @@ export const getCurrentJobLog = async (
     }
 
     const response = await fetch(url);
-    const data = await response.json();
+    const data = (await response.json()) as ApiResponse;
 
     if (!response.ok) {
       return { success: false, error: data.error };
@@ -125,7 +139,7 @@ export const getCurrentJobLog = async (
 
     return {
       success: true,
-      log: data.logs[0] || null, // Return the first log, if any
+      log: data.logs?.[0], // Return the first log, if any
     };
   } catch (error) {
     console.error("Get Job Log Error:", error);
