@@ -24,7 +24,7 @@ export default function StateControlButtons() {
   // Don't render if no job is loaded
   if (!state.currentJob) return null;
 
-  // Handle setup complete button
+  // Handle setup complete button - triggers first-off inspection
   const handleSetupComplete = () => {
     // Show inspection dialog for first-off inspection
     setInspectionType("1st_off");
@@ -37,7 +37,6 @@ export default function StateControlButtons() {
     inspector: string,
     comments: string
   ) => {
-    // Log inspection completion info
     console.log(
       `${
         inspectionType === "1st_off" ? "First-off" : "In-process"
@@ -49,8 +48,17 @@ export default function StateControlButtons() {
     setShowInspectionDialog(false);
 
     if (passed) {
-      // Show operator authentication dialog
-      setShowOperatorAuthDialog(true);
+      if (inspectionType === "1st_off") {
+        // First-off inspection passed - update terminal state to INSPECTION_REQUIRED
+        // Note: The setup log is completed inside InspectionDialog when inspection passes
+        dispatch(terminalActions.setTerminalState("INSPECTION_REQUIRED"));
+      }
+      
+      // For in-process inspection that passes, we don't need to change anything
+      // Show operator authentication dialog if first-off inspection passed
+      if (inspectionType === "1st_off") {
+        setShowOperatorAuthDialog(true);
+      }
     } else {
       // Failed inspection handling
       if (inspectionType === "in_process") {
@@ -60,6 +68,7 @@ export default function StateControlButtons() {
         );
       } else {
         // For first-off inspection failures, update terminal state back to SETUP
+        // The setup log is NOT ended - keeping it active for the next inspection attempt
         dispatch(terminalActions.setTerminalState("SETUP"));
         alert(
           "First-off inspection failed. Please correct the setup issues and try again."
@@ -103,6 +112,8 @@ export default function StateControlButtons() {
 
   // Handle pause operation
   const handlePause = (pauseReason: string) => {
+    console.log(`Pausing operation with reason: ${pauseReason}`);
+    
     // Log out the current user
     dispatch(terminalActions.setLoggedInUser(null));
     localStorage.removeItem("loggedUser");

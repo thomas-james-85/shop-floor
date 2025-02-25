@@ -161,7 +161,7 @@ export const startSetupLog = async (
     return { success: false, error: "Missing job data" };
   }
 
-  // FIX: Use the proper format for lookup_code, including contract_number
+  // Format lookup_code properly
   const lookup_code = `${jobData.route_card}-${jobData.contract_number}-${jobData.op_code}`;
 
   return createJobLog({
@@ -173,10 +173,10 @@ export const startSetupLog = async (
 };
 
 /**
- * End a SETUP log and create an INSPECTION log
+ * Create a new inspection log without ending the setup log
+ * Modified to handle the case of repeated inspections after failure
  */
-export const endSetupStartInspection = async (
-  setup_log_id: number,
+export const createInspectionLog = async (
   jobData: JobData,
   terminalData: TerminalData,
   inspectorId: string,
@@ -191,17 +191,7 @@ export const endSetupStartInspection = async (
     return { success: false, error: "Missing job data" };
   }
 
-  // First, end the setup log
-  const updateResult = await updateJobLog(setup_log_id, {
-    end_time: true, // Use current time
-  });
-
-  if (!updateResult.success) {
-    return { success: false, error: updateResult.error };
-  }
-
-  // Then create the inspection log
-  // FIX: Use the proper format for lookup_code, including contract_number
+  // Format lookup_code properly
   const lookup_code = `${jobData.route_card}-${jobData.contract_number}-${jobData.op_code}`;
 
   const inspectionResult = await createJobLog({
@@ -219,6 +209,19 @@ export const endSetupStartInspection = async (
     inspection_log_id: inspectionResult.log_id,
     error: inspectionResult.error,
   };
+};
+
+/**
+ * End a SETUP log when inspection passes
+ */
+export const completeSetupLog = async (
+  setup_log_id: number,
+  comments?: string
+): Promise<JobLogResponse> => {
+  return updateJobLog(setup_log_id, {
+    end_time: true, // Use current time
+    comments,
+  });
 };
 
 /**
@@ -250,7 +253,7 @@ export const startRunningLog = async (
     return { success: false, error: "Missing job data" };
   }
 
-  // FIX: Use the proper format for lookup_code, including contract_number
+  // Format lookup_code properly
   const lookup_code = `${jobData.route_card}-${jobData.contract_number}-${jobData.op_code}`;
 
   return createJobLog({
@@ -300,7 +303,7 @@ export const pauseJob = async (
   }
 
   // Then create the paused log
-  // FIX: Use the proper format for lookup_code, including contract_number
+  // Format lookup_code properly
   const lookup_code = `${jobData.route_card}-${jobData.contract_number}-${jobData.op_code}`;
 
   const pauseResult = await createJobLog({

@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { authenticateUser } from "@/utils/authenticateUser";
 import { useTerminal, terminalActions } from "@/contexts/terminalContext";
-import { endSetupStartInspection, completeInspection } from "@/utils/jobLogs";
+import { completeInspection } from "@/utils/jobLogs";
 
 type InspectionType = "1st_off" | "in_process";
 
@@ -55,26 +55,41 @@ export default function InspectionDialog({
 
       // Handle different log creation based on inspection type
       if (inspectionType === "1st_off" && state.activeLogId && state.activeLogState === "SETUP") {
-        // If this is a first-off inspection, we're completing a setup and starting inspection
-        const logResult = await endSetupStartInspection(
-          state.activeLogId,
-          state.currentJob!,
-          state.terminal,
-          employeeId,
-          "1st_off"
-        );
+        // For first-off inspection, we're starting inspection but NOT completing setup yet
+        // We'll only complete setup if inspection passes
+        
+        // Create inspection log without ending the setup log
+        const lookup_code = `${state.currentJob?.route_card}-${state.currentJob?.contract_number}-${state.currentJob?.op_code}`;
+        
+        const response = await fetch("/api/logs/jobs", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            lookup_code,
+            user_id: employeeId,
+            terminal_id: state.terminal.terminalId,
+            state: "INSPECTION",
+            inspection_type: "1st_off",
+            start_time: new Date().toISOString(),
+          }),
+        });
 
-        if (logResult.success && logResult.inspection_log_id) {
-          setInspectionLogId(logResult.inspection_log_id);
-          dispatch(terminalActions.setActiveLog(logResult.inspection_log_id, "INSPECTION"));
+        const data = await response.json();
+        
+        if (data.success && data.log_id) {
+          setInspectionLogId(data.log_id);
+          // We keep the activeLogId as the SETUP log but track our inspection log separately
         } else {
-          console.error("Failed to create inspection log:", logResult.error);
+          console.error("Failed to create inspection log:", data.error);
+          setError("Failed to create inspection log. Please try again.");
+          setLoading(false);
+          return;
         }
       } else if (inspectionType === "in_process" && state.currentJob) {
         // For in-process inspections, create a standalone inspection log
-        const lookup_code = `${state.currentJob.route_card}-${state.currentJob.op_code}`;
+        const lookup_code = `${state.currentJob.route_card}-${state.currentJob.contract_number}-${state.currentJob.op_code}`;
         
-        const response = await fetch("/api/logs/job", {
+        const response = await fetch("/api/logs/jobs", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -93,6 +108,11 @@ export default function InspectionDialog({
           setInspectionLogId(data.log_id);
           // We don't change activeLogId for in-process inspections
           // since the RUNNING log should still be active
+        } else {
+          console.error("Failed to create inspection log:", data.error);
+          setError("Failed to create inspection log. Please try again.");
+          setLoading(false);
+          return;
         }
       }
 
@@ -117,8 +137,24 @@ export default function InspectionDialog({
         inspectionType === "in_process" ? Number(inspectionQty) || 1 : 1
       );
 
-      // If this was a first-off inspection, update the terminal state
-      if (inspectionType === "1st_off") {
+      // If this was a first-off inspection that passed, end the setup log
+      if (inspectionType === "1st_off" && state.activeLogId && state.activeLogState === "SETUP") {
+        // Now end the setup log since inspection passed
+        const updateResult = await fetch("/api/logs/jobs", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            log_id: state.activeLogId,
+            end_time: new Date().toISOString()
+          }),
+        });
+        
+        const data = await updateResult.json();
+        if (!data.success) {
+          console.error("Failed to complete setup log:", data.error);
+        }
+        
+        // Update terminal state to inspection required
         dispatch(terminalActions.setTerminalState("INSPECTION_REQUIRED"));
       }
     }
@@ -136,6 +172,9 @@ export default function InspectionDialog({
         comments,
         inspectionType === "in_process" ? Number(inspectionQty) || 1 : 1
       );
+      
+      // For failed first-off inspections, we keep the setup log active (don't end it)
+      // This allows for another inspection after corrections are made
     }
 
     // Call the onComplete handler from parent component
