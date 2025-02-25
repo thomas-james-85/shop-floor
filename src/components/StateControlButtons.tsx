@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import InspectionDialog from "@/components/InspectionDialog";
 import OperatorAuthDialog from "@/components/OperatorAuthDialog";
 import CompletionDialog from "@/components/CompletionDialog";
+import PauseDialog from "./PauseDialog";
 
 export default function StateControlButtons() {
   const { state, dispatch } = useTerminal();
@@ -13,13 +14,18 @@ export default function StateControlButtons() {
   const [showInspectionDialog, setShowInspectionDialog] = useState(false);
   const [showOperatorAuthDialog, setShowOperatorAuthDialog] = useState(false);
   const [showCompletionDialog, setShowCompletionDialog] = useState(false);
+  const [showPauseDialog, setShowPauseDialog] = useState(false);
+  const [inspectionType, setInspectionType] = useState<
+    "1st_off" | "in_process"
+  >("1st_off");
 
   // Don't render if no job is loaded
   if (!state.currentJob) return null;
 
   // Handle setup complete button
   const handleSetupComplete = () => {
-    // Show inspection dialog
+    // Show inspection dialog for first-off inspection
+    setInspectionType("1st_off");
     setShowInspectionDialog(true);
   };
 
@@ -31,7 +37,9 @@ export default function StateControlButtons() {
   ) => {
     // Log inspection details (in a real app, this would be an API call)
     console.log(
-      `First-off inspection ${passed ? "passed" : "failed"} by ${inspector}`
+      `${
+        inspectionType === "1st_off" ? "First-off" : "In-process"
+      } inspection ${passed ? "passed" : "failed"} by ${inspector}`
     );
     console.log("Comments:", comments);
 
@@ -42,9 +50,18 @@ export default function StateControlButtons() {
       // Show operator authentication dialog
       setShowOperatorAuthDialog(true);
     } else {
-      // Remain in SETUP state (already there)
-      // Optionally show a notification about failed inspection
-      alert("Inspection failed. Please correct the issues and try again.");
+      // Failed inspection handling
+      if (inspectionType === "in_process") {
+        // For in-process inspection failures, stay in INSPECTION_REQUIRED state
+        alert(
+          "In-process inspection failed. Please correct the issues and try again."
+        );
+      } else {
+        // For first-off inspection failures, stay in SETUP state
+        alert(
+          "First-off inspection failed. Please correct the setup issues and try again."
+        );
+      }
     }
   };
 
@@ -88,6 +105,53 @@ export default function StateControlButtons() {
     setShowCompletionDialog(false);
   };
 
+  // Handle pause operation
+  const handlePause = (reason: string) => {
+    // Log pause reason (in a real app, this would be an API call)
+    console.log("Pausing operation. Reason:", reason);
+
+    // Log the pause event with the current user
+    console.log("Logging pause:", {
+      terminalId: state.terminal.terminalId,
+      jobId: state.currentJob?.route_card,
+      operatorName: state.terminal.loggedInUser,
+      reason: reason,
+      timestamp: new Date().toISOString(),
+    });
+
+    // Log out the current user
+    dispatch(terminalActions.setLoggedInUser(null));
+    localStorage.removeItem("loggedUser");
+
+    // Change terminal state to PAUSED
+    dispatch(terminalActions.setTerminalState("PAUSED"));
+
+    // Close the pause dialog
+    setShowPauseDialog(false);
+  };
+
+  // Handle resume operation
+  const handleResume = () => {
+    // Show operator authentication dialog
+    setShowOperatorAuthDialog(true);
+
+    // After successful authentication, the operator will be logged in
+    // and the terminal state will change to INSPECTION_REQUIRED
+    // This is handled in the handleOperatorAuthenticated function with a slight modification
+  };
+
+  // Override operator authenticated for resume workflow
+  const handleResumeOperatorAuthenticated = (operatorName: string) => {
+    // Update terminal with operator name
+    dispatch(terminalActions.setLoggedInUser(operatorName));
+
+    // Change state to INSPECTION_REQUIRED instead of RUNNING for the resume workflow
+    dispatch(terminalActions.setTerminalState("INSPECTION_REQUIRED"));
+
+    // Close operator auth dialog
+    setShowOperatorAuthDialog(false);
+  };
+
   const handleAbandon = () => {
     // Clear user
     dispatch(terminalActions.setLoggedInUser(null));
@@ -100,10 +164,16 @@ export default function StateControlButtons() {
     dispatch(terminalActions.setTerminalState("IDLE"));
   };
 
+  // Determine which operator auth handler to use based on terminal state
+  const operatorAuthHandler =
+    terminalState === "PAUSED"
+      ? handleResumeOperatorAuthenticated
+      : handleOperatorAuthenticated;
+
   return (
     <>
       <div className="flex flex-wrap gap-2 mt-4 justify-center">
-        {/* Setup Complete button - now triggers inspection process */}
+        {/* Setup Complete button - triggers first-off inspection process */}
         {terminalState === "SETUP" && (
           <Button
             onClick={handleSetupComplete}
@@ -113,7 +183,7 @@ export default function StateControlButtons() {
           </Button>
         )}
 
-        {/* Running Complete button - now opens completion dialog */}
+        {/* Running Complete button - opens completion dialog */}
         {terminalState === "RUNNING" && (
           <Button
             onClick={() => setShowCompletionDialog(true)}
@@ -126,34 +196,46 @@ export default function StateControlButtons() {
         {/* Inspect button */}
         {terminalState === "RUNNING" && (
           <Button
-            onClick={() =>
-              dispatch(terminalActions.setTerminalState("INSPECTION_REQUIRED"))
-            }
+            onClick={() => {
+              setInspectionType("in_process");
+              setShowInspectionDialog(true);
+            }}
             className="bg-yellow-500 hover:bg-yellow-600 text-white"
           >
             Inspect
           </Button>
         )}
 
-        {/* Pause button */}
+        {/* Pause button - now opens pause dialog */}
         {terminalState === "RUNNING" && (
           <Button
-            onClick={() => dispatch(terminalActions.setTerminalState("PAUSED"))}
+            onClick={() => setShowPauseDialog(true)}
             className="bg-orange-500 hover:bg-orange-600 text-white"
           >
             Pause
           </Button>
         )}
 
-        {/* Resume button */}
+        {/* Resume button - now triggers authentication flow */}
         {terminalState === "PAUSED" && (
           <Button
-            onClick={() =>
-              dispatch(terminalActions.setTerminalState("RUNNING"))
-            }
+            onClick={handleResume}
             className="bg-blue-500 hover:bg-blue-600 text-white"
           >
             Resume
+          </Button>
+        )}
+
+        {/* In-process Inspection button for INSPECTION_REQUIRED state */}
+        {terminalState === "INSPECTION_REQUIRED" && (
+          <Button
+            onClick={() => {
+              setInspectionType("in_process");
+              setShowInspectionDialog(true);
+            }}
+            className="bg-yellow-500 hover:bg-yellow-600 text-white"
+          >
+            Perform Inspection
           </Button>
         )}
 
@@ -177,7 +259,7 @@ export default function StateControlButtons() {
       {/* Inspection Dialog */}
       {showInspectionDialog && (
         <InspectionDialog
-          inspectionType="1st_off"
+          inspectionType={inspectionType}
           onComplete={handleInspectionComplete}
           onCancel={() => setShowInspectionDialog(false)}
         />
@@ -186,7 +268,7 @@ export default function StateControlButtons() {
       {/* Operator Authentication Dialog */}
       {showOperatorAuthDialog && (
         <OperatorAuthDialog
-          onAuthenticated={handleOperatorAuthenticated}
+          onAuthenticated={operatorAuthHandler}
           onCancel={() => setShowOperatorAuthDialog(false)}
         />
       )}
@@ -196,6 +278,14 @@ export default function StateControlButtons() {
         <CompletionDialog
           onComplete={handleJobComplete}
           onCancel={() => setShowCompletionDialog(false)}
+        />
+      )}
+
+      {/* Pause Dialog */}
+      {showPauseDialog && (
+        <PauseDialog
+          onPause={handlePause}
+          onCancel={() => setShowPauseDialog(false)}
         />
       )}
     </>
