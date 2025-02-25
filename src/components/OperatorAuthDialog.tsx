@@ -1,0 +1,99 @@
+"use client";
+
+import { useState } from "react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { authenticateUser } from "@/utils/authenticateUser";
+import { useTerminal, terminalActions } from "@/contexts/terminalContext";
+
+type OperatorAuthDialogProps = {
+  onAuthenticated: (operatorName: string) => void;
+  onCancel: () => void;
+};
+
+export default function OperatorAuthDialog({
+  onAuthenticated,
+  onCancel,
+}: OperatorAuthDialogProps) {
+  const [employeeId, setEmployeeId] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleOperatorScan = async () => {
+    if (!employeeId.trim()) {
+      setError("Please enter an employee ID");
+      return;
+    }
+
+    setLoading(true);
+    setError("");
+
+    try {
+      const result = await authenticateUser(employeeId, "can_operate");
+
+      if (!result.success) {
+        setError(result.error || "Authentication failed");
+        setLoading(false);
+        return;
+      }
+
+      // Call the onAuthenticated callback with the operator name
+      onAuthenticated(result.name || "");
+    } catch (error) {
+      console.error("Authentication Error:", error);
+      setError("An error occurred. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle Enter key press for scanner
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      handleOperatorScan();
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 flex items-center justify-center bg-gray-900 bg-opacity-50 z-50">
+      <Card className="w-[500px] p-6 bg-white rounded-lg shadow-lg">
+        <CardContent className="flex flex-col items-center space-y-4">
+          <h2 className="text-xl font-bold mb-4">Operator Authentication</h2>
+          <p className="text-center mb-4">
+            Inspection passed! Please scan operator ID to begin production
+          </p>
+
+          {error && <p className="text-red-500 text-sm">{error}</p>}
+
+          <Input
+            type="text"
+            placeholder="Scan or Enter Operator ID"
+            value={employeeId}
+            onChange={(e) => setEmployeeId(e.target.value)}
+            onKeyDown={handleKeyDown}
+            disabled={loading}
+            autoFocus
+            className="w-full"
+          />
+
+          <div className="flex space-x-4 w-full justify-center mt-4">
+            <Button
+              onClick={handleOperatorScan}
+              disabled={loading}
+              className="bg-green-500 hover:bg-green-600 text-white"
+            >
+              {loading ? "Verifying..." : "Verify Operator"}
+            </Button>
+            <Button
+              onClick={onCancel}
+              className="bg-gray-500 hover:bg-gray-600 text-white"
+            >
+              Cancel
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
