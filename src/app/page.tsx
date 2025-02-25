@@ -26,6 +26,9 @@ export default function HomePage() {
     ) {
       setUserDialogRole("can_setup");
       setShowUserDialog(true);
+    } else {
+      // Close the dialog if we now have a logged in user or if the state is no longer IDLE
+      setShowUserDialog(false);
     }
   }, [
     state.currentJob,
