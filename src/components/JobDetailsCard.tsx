@@ -1,15 +1,17 @@
 import { Card, CardContent } from "@/components/ui/card";
-import { JobData } from "@/types";
+import { useTerminal } from "@/contexts/terminalContext";
 
-type JobDetailsCardProps = {
-  jobData: JobData;
-};
+export default function JobDetailsCard() {
+  const { state } = useTerminal();
+  const jobData = state.currentJob;
 
-export default function JobDetailsCard({ jobData }: JobDetailsCardProps) {
+  // Don't render if no job is loaded
+  if (!jobData) return null;
+
   return (
     <Card className="w-[800px] p-6 border-2 border-black rounded-lg shadow-md bg-white">
       <CardContent className="flex flex-col items-center text-black">
-        {/* ✅ Grid Layout for Job Details */}
+        {/* Grid Layout for Job Details */}
         <div className="grid grid-cols-3 gap-4 w-full text-center text-lg">
           <div className="flex flex-col">
             <span className="font-bold">Contract</span>

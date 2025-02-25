@@ -3,22 +3,26 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import TerminalLogin from "@/components/TerminalLogin";
-import { useTerminal } from "@/contexts/terminalContext"; // Import the context hook
+import { useTerminal } from "@/contexts/terminalContext";
 
 export default function LoginPage() {
   const router = useRouter();
-  const { terminalData, setTerminalData } = useTerminal(); // Get terminal state from context
+  const { state } = useTerminal();
 
   // Redirect if terminal is already logged in
   useEffect(() => {
-    if (terminalData.terminalId) {
-      router.replace("/"); // Redirect to home (or dashboard)
+    if (state.terminal.terminalId) {
+      router.replace("/"); // Redirect to home page
     }
-  }, [terminalData.terminalId, router]);
+  }, [state.terminal.terminalId, router]);
 
   // Show "Redirecting..." message if already authenticated
-  if (terminalData.terminalId) {
-    return <p className="text-lg text-gray-600">Redirecting...</p>;
+  if (state.terminal.terminalId) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <p className="text-lg text-gray-600">Redirecting...</p>
+      </div>
+    );
   }
 
   return <TerminalLogin />;

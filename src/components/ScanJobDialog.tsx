@@ -4,46 +4,47 @@ import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { useTerminal, terminalActions } from "@/contexts/terminalContext";
 import { JobData } from "@/types";
 
-type ScanJobDialogProps = {
-  terminalState:
-    | "IDLE"
-    | "SETUP"
-    | "RUNNING"
-    | "PAUSED"
-    | "INSPECTION_REQUIRED";
-  operationCode: string;
-  onJobScanned: (jobData: JobData, userName: string) => void; // ✅ Now returns both JobData and User Name
-};
-
-export default function ScanJobDialog({
-  terminalState,
-  operationCode,
-  onJobScanned,
-}: ScanJobDialogProps) {
+export default function ScanJobDialog() {
+  const { state, dispatch } = useTerminal();
   const [barcode, setBarcode] = useState("");
   const [loading, setLoading] = useState(false);
+  const [scanError, setScanError] = useState<string | null>(null);
 
-  if (terminalState !== "IDLE") return null;
+  // Only show this dialog when in IDLE state
+  if (state.terminal.terminalState !== "IDLE") return null;
 
   const handleScan = async () => {
     if (!barcode.trim()) return;
 
     setLoading(true);
+    setScanError(null);
 
     try {
+      // Set loading state
+      dispatch({ type: "SET_LOADING_JOB", payload: true });
+
       const response = await fetch("/api/jobs/lookup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ scan: barcode, operation_code: operationCode }),
+        body: JSON.stringify({
+          scan: barcode,
+          operation_code: state.terminal.operationCode,
+        }),
       });
 
       const data = await response.json();
 
       if (!response.ok || "error" in data) {
-        alert(`Error: ${data.error || "Unknown error"}`);
+        setScanError(data.error || "Unknown error");
+        dispatch({
+          type: "SET_ERROR",
+          payload: data.error || "Job scan failed",
+        });
         setLoading(false);
+        dispatch({ type: "SET_LOADING_JOB", payload: false });
         return;
       }
 
@@ -55,40 +56,59 @@ export default function ScanJobDialog({
         if (!confirmContinue) {
           setBarcode(""); // Clear input
           setLoading(false);
+          dispatch({ type: "SET_LOADING_JOB", payload: false });
           return;
         }
       }
 
-      // ✅ Extract user name from API response (assuming it's included)
-      const userName = data.user_name || "Unknown User"; // Default if missing
+      // Update state with the scanned job
+      dispatch(terminalActions.setCurrentJob(data as JobData));
 
-      // ✅ Ensure `onJobScanned` receives both `JobData` and `userName`
-      onJobScanned(data as JobData, userName);
+      // Clear the input field
+      setBarcode("");
     } catch (error) {
       console.error("Scan Error:", error);
-      alert("An error occurred. Please try again.");
+      setScanError("An error occurred. Please try again.");
+      dispatch({
+        type: "SET_ERROR",
+        payload: "Server error while scanning job",
+      });
+    } finally {
+      setLoading(false);
+      dispatch({ type: "SET_LOADING_JOB", payload: false });
     }
+  };
 
-    setLoading(false);
+  // Handle Enter key press
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      handleScan();
+    }
   };
 
   return (
     <Card className="w-[800px] h-[80px] rounded-2xl bg-white text-black shadow-lg flex items-center justify-center p-0">
-      <CardContent className="w-full flex flex-row items-center justify-center space-x-4 p-0">
-        <Input
-          type="text"
-          placeholder="Scan or Enter Job"
-          value={barcode}
-          onChange={(e) => setBarcode(e.target.value)}
-          className="w-[300px] h-[50px] text-lg px-4 border-2 border-black rounded-lg text-center"
-        />
-        <Button
-          onClick={handleScan}
-          className="w-[100px] h-[50px] text-lg font-semibold bg-black text-white rounded-lg hover:bg-gray-800 transition"
-          disabled={loading}
-        >
-          {loading ? "Scanning..." : "Scan"}
-        </Button>
+      <CardContent className="w-full flex flex-col items-center justify-center p-0">
+        {scanError && <p className="text-red-500 text-sm mb-2">{scanError}</p>}
+        <div className="flex flex-row items-center justify-center space-x-4">
+          <Input
+            type="text"
+            placeholder="Scan or Enter Job"
+            value={barcode}
+            onChange={(e) => setBarcode(e.target.value)}
+            onKeyDown={handleKeyDown}
+            className="w-[300px] h-[50px] text-lg px-4 border-2 border-black rounded-lg text-center"
+            disabled={loading}
+            autoFocus
+          />
+          <Button
+            onClick={handleScan}
+            className="w-[100px] h-[50px] text-lg font-semibold bg-black text-white rounded-lg hover:bg-gray-800 transition"
+            disabled={loading}
+          >
+            {loading ? "Scanning..." : "Scan"}
+          </Button>
+        </div>
       </CardContent>
     </Card>
   );

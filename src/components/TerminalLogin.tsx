@@ -4,24 +4,28 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { useTerminal } from "@/contexts/terminalContext"; // Import the context hook
+import { useTerminal, terminalActions } from "@/contexts/terminalContext"; // Import updated context
 import { TerminalData } from "@/types";
 
 export default function TerminalLogin() {
-  const { terminalData, setTerminalData } = useTerminal(); // Access context to update state
+  const { state, dispatch } = useTerminal(); // Access updated context
   const [terminalId, setTerminalId] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+
   const handleLogin = async () => {
     setError("");
+    setIsLoading(true);
+
     if (!terminalId || !password) {
       setError("Please enter Terminal ID and Password");
+      setIsLoading(false);
       return;
     }
 
     try {
       const response = await fetch("/api/terminal/login", {
-        //run api
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -30,30 +34,44 @@ export default function TerminalLogin() {
         }),
       });
 
-      const data: TerminalData = await response.json(); // set data to response from api
+      const data = await response.json();
+
       if (!response.ok) {
         setError(data.error || "Login failed");
-        console.log("api error");
+        console.log("API error");
+        setIsLoading(false);
         return;
       }
-      console.log("1st data log:", data);
 
-      // Store login session in localStorage
-      localStorage.setItem("terminalData", JSON.stringify(data));
-      console.log("2nd data log:", data);
-      // Update global terminal state
-      setTerminalData({
-        terminalId: data.terminalId,
-        terminalName: data.terminalName,
-        operationCode: data.operationCode,
-        loggedInUser: data.loggedInUser,
-        terminalState: data.terminalState || "IDLE",
-        lastStateChange: data.lastStateChange
-          ? new Date(data.lastStateChange)
-          : null, // Convert string Date type
-      });
-    } catch {
+      // Process response data
+      console.log("Terminal login response:", data);
+
+      // Update global terminal state using our new reducer
+      dispatch(
+        terminalActions.login({
+          terminalId: parseInt(terminalId),
+          terminalName: data.terminal_name,
+          operationCode: data.operation_code,
+          terminalState: "IDLE",
+          lastStateChange: new Date(),
+        })
+      );
+
+      // Clear form after successful login
+      setTerminalId("");
+      setPassword("");
+    } catch (error) {
+      console.error("Login error:", error);
       setError("Server error, please try again.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Handle Enter key press
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      handleLogin();
     }
   };
 
@@ -69,18 +87,26 @@ export default function TerminalLogin() {
             type="number"
             placeholder="Terminal ID"
             value={terminalId}
-            onChange={(e) => setTerminalId(e.target.value)} //terminalId hook
+            onChange={(e) => setTerminalId(e.target.value)}
+            onKeyDown={handleKeyDown}
+            disabled={isLoading}
           />
           <Input
             type="password"
             placeholder="Password"
             value={password}
-            onChange={(e) => setPassword(e.target.value)} // password Hook
+            onChange={(e) => setPassword(e.target.value)}
+            onKeyDown={handleKeyDown}
+            disabled={isLoading}
           />
-          <Button className="w-full" onClick={handleLogin}>
-            Login
+          <Button className="w-full" onClick={handleLogin} disabled={isLoading}>
+            {isLoading ? "Logging in..." : "Login"}
           </Button>
-          <p>{terminalData.terminalName}</p>
+          {state.terminal.terminalName && (
+            <p className="text-center text-sm text-gray-500">
+              Connected to: {state.terminal.terminalName}
+            </p>
+          )}
         </CardContent>
       </Card>
     </div>

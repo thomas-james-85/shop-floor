@@ -1,87 +1,96 @@
-import { TerminalData, JobData } from "@/types";
+import { useTerminal, terminalActions } from "@/contexts/terminalContext";
+import { Button } from "@/components/ui/button";
 
-type StateControlButtonsProps = {
-  handleStateChange: (newState: TerminalData["terminalState"]) => void;
-  terminalState: TerminalData["terminalState"];
-  scannedJob: boolean;
-  setScannedJob: (job: JobData | null) => void;
-  loggedInUser: string | null;
-  setLoggedInUser: (user: string | null) => void;
-};
+export default function StateControlButtons() {
+  const { state, dispatch } = useTerminal();
+  const { terminalState } = state.terminal;
 
-export default function StateControlButtons({
-  handleStateChange,
-  terminalState,
-  scannedJob,
-  setScannedJob,
-  loggedInUser,
-  setLoggedInUser,
-}: StateControlButtonsProps) {
-  if (!scannedJob) return null;
+  // Don't render if no job is loaded
+  if (!state.currentJob) return null;
+
+  const handleStateChange = (newState: typeof terminalState) => {
+    dispatch(terminalActions.setTerminalState(newState));
+  };
+
+  const handleAbandon = () => {
+    // Clear user
+    dispatch(terminalActions.setLoggedInUser(null));
+    localStorage.removeItem("loggedUser");
+
+    // Clear job
+    dispatch(terminalActions.resetJob());
+
+    // Reset terminal state
+    handleStateChange("IDLE");
+  };
 
   return (
     <div className="flex flex-wrap gap-2 mt-4 justify-center">
-      {/* ✅ Restore Setup Complete button */}
+      {/* Setup Complete button */}
       {terminalState === "SETUP" && (
-        <button
+        <Button
           onClick={() => handleStateChange("RUNNING")}
-          className="bg-blue-500 text-white px-4 py-2 rounded"
+          className="bg-blue-500 hover:bg-blue-600 text-white"
         >
           Setup Complete
-        </button>
+        </Button>
       )}
 
-      {/* ✅ Restore Running Complete button */}
+      {/* Running Complete button */}
       {terminalState === "RUNNING" && (
-        <button
+        <Button
           onClick={() => handleStateChange("IDLE")}
-          className="bg-green-500 text-white px-4 py-2 rounded"
+          className="bg-green-500 hover:bg-green-600 text-white"
         >
           Running Complete
-        </button>
+        </Button>
       )}
 
-      {/* ✅ Restore Inspect button */}
+      {/* Inspect button */}
       {terminalState === "RUNNING" && (
-        <button
-          onClick={() => console.log("Inspect button clicked")}
-          className="bg-yellow-500 text-white px-4 py-2 rounded"
+        <Button
+          onClick={() => handleStateChange("INSPECTION_REQUIRED")}
+          className="bg-yellow-500 hover:bg-yellow-600 text-white"
         >
           Inspect
-        </button>
+        </Button>
       )}
 
-      {/* ✅ Restore Pause button */}
+      {/* Pause button */}
       {terminalState === "RUNNING" && (
-        <button
+        <Button
           onClick={() => handleStateChange("PAUSED")}
-          className="bg-orange-500 text-white px-4 py-2 rounded"
+          className="bg-orange-500 hover:bg-orange-600 text-white"
         >
           Pause
-        </button>
+        </Button>
       )}
 
-      {/* ✅ Abandon Button - Clears Only the User */}
-      <button
-        onClick={() => {
-          setLoggedInUser(null);
-          localStorage.removeItem("loggedUser");
+      {/* Resume button */}
+      {terminalState === "PAUSED" && (
+        <Button
+          onClick={() => handleStateChange("RUNNING")}
+          className="bg-blue-500 hover:bg-blue-600 text-white"
+        >
+          Resume
+        </Button>
+      )}
 
-          setScannedJob(null);
-          handleStateChange("IDLE");
-        }}
-        className="bg-red-500 text-white px-4 py-2 rounded"
+      {/* Abandon Button - Clears User and Job */}
+      <Button
+        onClick={handleAbandon}
+        className="bg-red-500 hover:bg-red-600 text-white"
       >
         Abandon
-      </button>
+      </Button>
 
-      {/* ✅ Restore Report Issue button */}
-      <button
+      {/* Report Issue button */}
+      <Button
         onClick={() => console.log("Report Issue button clicked")}
-        className="bg-gray-700 text-white px-4 py-2 rounded"
+        className="bg-gray-700 hover:bg-gray-800 text-white"
       >
         Report Issue
-      </button>
+      </Button>
     </div>
   );
 }

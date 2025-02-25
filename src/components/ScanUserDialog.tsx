@@ -5,6 +5,7 @@ import { authenticateUser } from "@/utils/authenticateUser";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { useTerminal, terminalActions } from "@/contexts/terminalContext";
 
 type ScanUserDialogProps = {
   roleRequired:
@@ -12,44 +13,82 @@ type ScanUserDialogProps = {
     | "can_setup"
     | "can_inspect"
     | "can_remanufacture";
-  onAuthenticated: () => void; // ✅ No need to pass userName, will be in localStorage
   onCancel: () => void;
 };
 
 export default function ScanUserDialog({
   roleRequired,
-  onAuthenticated,
   onCancel,
 }: ScanUserDialogProps) {
+  const { dispatch } = useTerminal();
   const [employeeId, setEmployeeId] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   const handleScan = async () => {
-    setLoading(true);
-    setError("");
-
-    const result = await authenticateUser(employeeId, roleRequired);
-
-    if (!result.success) {
-      setError(result.error || "Authentication failed");
-      setLoading(false);
+    if (!employeeId.trim()) {
+      setError("Please enter an employee ID");
       return;
     }
 
-    // ✅ Save the scanned user in localStorage instead of passing via props
-    localStorage.setItem("loggedUser", result.name!);
+    setLoading(true);
+    setError("");
 
-    onAuthenticated={(userName) => {
-      localStorage.setItem("loggedUser", userName); // ✅ Store user name on successful scan
-      setLoggedInUser(userName); // ✅ Ensure UI updates to show logged-in user
-    }}
-    
-    setLoading(false);
+    try {
+      dispatch({ type: "SET_LOADING_USER", payload: true });
+
+      const result = await authenticateUser(employeeId, roleRequired);
+
+      if (!result.success) {
+        setError(result.error || "Authentication failed");
+        dispatch({
+          type: "SET_ERROR",
+          payload: result.error || "User authentication failed",
+        });
+        setLoading(false);
+        dispatch({ type: "SET_LOADING_USER", payload: false });
+        return;
+      }
+
+      // Update state with authenticated user
+      dispatch(terminalActions.setLoggedInUser(result.name || ""));
+
+      // Store in localStorage
+      localStorage.setItem("loggedUser", result.name || "");
+
+      // Update terminal state based on role
+      if (roleRequired === "can_setup") {
+        dispatch(terminalActions.setTerminalState("SETUP"));
+      } else if (roleRequired === "can_operate") {
+        dispatch(terminalActions.setTerminalState("RUNNING"));
+      } else if (roleRequired === "can_inspect") {
+        dispatch(terminalActions.setTerminalState("INSPECTION_REQUIRED"));
+      }
+
+      // Clear form
+      setEmployeeId("");
+    } catch (error) {
+      console.error("Authentication Error:", error);
+      setError("An error occurred. Please try again.");
+      dispatch({
+        type: "SET_ERROR",
+        payload: "Server error during authentication",
+      });
+    } finally {
+      setLoading(false);
+      dispatch({ type: "SET_LOADING_USER", payload: false });
+    }
+  };
+
+  // Handle Enter key press
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      handleScan();
+    }
   };
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center bg-gray-900 bg-opacity-50">
+    <div className="fixed inset-0 flex items-center justify-center bg-gray-900 bg-opacity-50 z-50">
       <Card className="w-[400px] p-6 bg-white rounded-lg shadow-lg">
         <CardContent className="flex flex-col items-center space-y-4">
           <h2 className="text-lg font-bold">
@@ -67,6 +106,9 @@ export default function ScanUserDialog({
             placeholder="Scan or Enter Employee ID"
             value={employeeId}
             onChange={(e) => setEmployeeId(e.target.value)}
+            onKeyDown={handleKeyDown}
+            disabled={loading}
+            autoFocus
           />
 
           <div className="flex space-x-2">
@@ -80,6 +122,7 @@ export default function ScanUserDialog({
             <Button
               onClick={onCancel}
               className="bg-gray-500 text-white px-4 py-2 rounded"
+              disabled={loading}
             >
               Cancel
             </Button>
