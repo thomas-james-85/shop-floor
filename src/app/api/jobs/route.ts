@@ -1,4 +1,4 @@
-// src/app/api/logs/job/route.ts
+// src/app/api/jobs/route.ts
 import { NextResponse } from "next/server";
 import db from "@/lib/db";
 
@@ -88,7 +88,19 @@ export async function PATCH(req: Request) {
     Object.entries(updateFields).forEach(([key, value]) => {
       if (allowedFields.includes(key) && value !== undefined) {
         updates.push(`${key} = $${paramIndex}`);
-        values.push(value);
+
+        // Fix for TypeScript error: Handle empty objects by converting them to null
+        if (
+          typeof value === "object" &&
+          value !== null &&
+          Object.keys(value).length === 0
+        ) {
+          values.push(null);
+        } else {
+          // Use type assertion to satisfy TypeScript
+          values.push(value as string | number | boolean | null);
+        }
+
         paramIndex++;
       }
     });
