@@ -11,9 +11,10 @@ import { pauseJob } from "@/utils/jobLogs";
 type PauseDialogProps = {
   onPause: (reason: string) => void;
   onCancel: () => void;
+  employeeId?: string; // Add employee ID prop
 };
 
-export default function PauseDialog({ onPause, onCancel }: PauseDialogProps) {
+export default function PauseDialog({ onPause, onCancel, employeeId = "" }: PauseDialogProps) {
   const { state, dispatch } = useTerminal();
   const [reason, setReason] = useState<string>("");
   const [completedQty, setCompletedQty] = useState<string>("");
@@ -42,16 +43,17 @@ export default function PauseDialog({ onPause, onCancel }: PauseDialogProps) {
       setIsLogging(true);
 
       try {
-        const userId = state.terminal.loggedInUser
-          ? state.terminal.loggedInUser
-          : "unknown";
+        // Use the employeeId prop instead of the user name
+        const operatorId = employeeId || "unknown";
+        
+        console.log("Pausing job with operator ID:", operatorId);
 
         const logResult = await pauseJob(
           state.activeLogId,
           qty,
           state.currentJob,
           state.terminal,
-          userId,
+          operatorId, // Use operator ID here
           reason
         );
 

@@ -292,33 +292,38 @@ export const pauseJob = async (
     return { success: false, error: "Missing job data" };
   }
 
-  // First, complete the current running log
-  const updateResult = await updateJobLog(running_log_id, {
-    end_time: true,
-    completed_qty: completedQty,
-  });
+  try {
+    // First, complete the current running log
+    const updateResult = await updateJobLog(running_log_id, {
+      end_time: true,
+      completed_qty: completedQty,
+    });
 
-  if (!updateResult.success) {
-    return { success: false, error: updateResult.error };
+    if (!updateResult.success) {
+      return { success: false, error: updateResult.error };
+    }
+
+    // Format lookup_code properly
+    const lookup_code = `${jobData.route_card}-${jobData.contract_number}-${jobData.op_code}`;
+
+    // Then create the paused log
+    const pauseResult = await createJobLog({
+      lookup_code,
+      user_id: operatorId,
+      machine_id: terminalData.terminalId?.toString() || "",
+      state: "PAUSED",
+      comments: pauseReason,
+    });
+
+    return {
+      success: pauseResult.success,
+      paused_log_id: pauseResult.log_id,
+      error: pauseResult.error,
+    };
+  } catch (error) {
+    console.error("Error during pause job:", error);
+    return { success: false, error: "An unexpected error occurred during job pause" };
   }
-
-  // Then create the paused log
-  // Format lookup_code properly
-  const lookup_code = `${jobData.route_card}-${jobData.contract_number}-${jobData.op_code}`;
-
-  const pauseResult = await createJobLog({
-    lookup_code,
-    user_id: operatorId,
-    machine_id: terminalData.terminalId?.toString() || "",
-    state: "PAUSED",
-    comments: pauseReason,
-  });
-
-  return {
-    success: pauseResult.success,
-    paused_log_id: pauseResult.log_id,
-    error: pauseResult.error,
-  };
 };
 
 /**
@@ -334,15 +339,29 @@ export const resumeJob = async (
     return { success: false, error: "Missing job data" };
   }
 
-  // First, end the paused log
-  const updateResult = await updateJobLog(paused_log_id, {
-    end_time: true,
-  });
+  try {
+    // First, end the paused log
+    const updateResult = await updateJobLog(paused_log_id, {
+      end_time: true,
+    });
 
-  if (!updateResult.success) {
-    return { success: false, error: updateResult.error };
+    if (!updateResult.success) {
+      return { success: false, error: updateResult.error || "Failed to end paused log" };
+    }
+
+    // Then create the new running log
+    const runningLogResult = await startRunningLog(jobData, terminalData, operatorId);
+    
+    if (!runningLogResult.success) {
+      return { success: false, error: runningLogResult.error || "Failed to create running log" };
+    }
+    
+    return {
+      success: true,
+      running_log_id: runningLogResult.log_id
+    };
+  } catch (error) {
+    console.error("Resume Job Error:", error);
+    return { success: false, error: "An unexpected error occurred during job resumption" };
   }
-
-  // Then create the new running log
-  return startRunningLog(jobData, terminalData, operatorId);
 };

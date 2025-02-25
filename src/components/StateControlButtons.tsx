@@ -20,6 +20,9 @@ export default function StateControlButtons() {
   const [inspectionType, setInspectionType] = useState<
     "1st_off" | "in_process"
   >("1st_off");
+  
+  // Track the authenticated employee ID for logging purposes
+  const [authenticatedEmployeeId, setAuthenticatedEmployeeId] = useState<string>("");
 
   // Don't render if no job is loaded
   if (!state.currentJob) return null;
@@ -78,7 +81,10 @@ export default function StateControlButtons() {
   };
 
   // Handle operator authentication
-  const handleOperatorAuthenticated = (operatorName: string) => {
+  const handleOperatorAuthenticated = (operatorName: string, operatorId: string) => {
+    // Store the employee ID for future use
+    setAuthenticatedEmployeeId(operatorId);
+    
     // Update terminal with operator name
     dispatch(terminalActions.setLoggedInUser(operatorName));
 
@@ -267,6 +273,7 @@ export default function StateControlButtons() {
         <PauseDialog
           onPause={handlePause}
           onCancel={() => setShowPauseDialog(false)}
+          employeeId={authenticatedEmployeeId} // Pass the stored employee ID
         />
       )}
     </>

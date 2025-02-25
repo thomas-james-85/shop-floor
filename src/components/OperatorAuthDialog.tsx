@@ -10,7 +10,7 @@ import { useTerminal, terminalActions } from "@/contexts/terminalContext";
 import { startRunningLog, resumeJob } from "@/utils/jobLogs";
 
 type OperatorAuthDialogProps = {
-  onAuthenticated: (operatorName: string) => void;
+  onAuthenticated: (operatorName: string, operatorId: string) => void; // Updated to pass ID
   onCancel: () => void;
   isResume?: boolean; // Flag to indicate if this is for resuming a paused job
 };
@@ -51,11 +51,13 @@ export default function OperatorAuthDialog({
           state.activeLogState === "PAUSED"
         ) {
           // Resuming from PAUSED state
+          console.log("Resuming job with operator ID:", employeeId);
+          
           const logResult = await resumeJob(
             state.activeLogId,
             state.currentJob,
             state.terminal,
-            employeeId
+            employeeId // Use the employee ID here
           );
 
           if (logResult.success && logResult.running_log_id) {
@@ -64,25 +66,31 @@ export default function OperatorAuthDialog({
             );
           } else {
             console.error("Failed to create resume log:", logResult.error);
+            setError(logResult.error || "Failed to resume job");
+            setLoading(false);
+            return;
           }
         } else if (!isResume) {
           // Normal transition to RUNNING after inspection
           const logResult = await startRunningLog(
             state.currentJob,
             state.terminal,
-            employeeId
+            employeeId // Use the employee ID here
           );
 
           if (logResult.success && logResult.log_id) {
             dispatch(terminalActions.setActiveLog(logResult.log_id, "RUNNING"));
           } else {
             console.error("Failed to create running log:", logResult.error);
+            setError(logResult.error || "Failed to start job");
+            setLoading(false);
+            return;
           }
         }
       }
 
-      // Call the onAuthenticated callback with the operator name
-      onAuthenticated(result.name || "");
+      // Call the onAuthenticated callback with both the operator name and ID
+      onAuthenticated(result.name || "", employeeId);
     } catch (error) {
       console.error("Authentication Error:", error);
       setError("An error occurred. Please try again.");
