@@ -161,7 +161,8 @@ export const startSetupLog = async (
     return { success: false, error: "Missing job data" };
   }
 
-  const lookup_code = `${jobData.route_card}-${jobData.op_code}`;
+  // FIX: Use the proper format for lookup_code, including contract_number
+  const lookup_code = `${jobData.route_card}-${jobData.contract_number}-${jobData.op_code}`;
 
   return createJobLog({
     lookup_code,
@@ -200,7 +201,8 @@ export const endSetupStartInspection = async (
   }
 
   // Then create the inspection log
-  const lookup_code = `${jobData.route_card}-${jobData.op_code}`;
+  // FIX: Use the proper format for lookup_code, including contract_number
+  const lookup_code = `${jobData.route_card}-${jobData.contract_number}-${jobData.op_code}`;
 
   const inspectionResult = await createJobLog({
     lookup_code,
@@ -248,7 +250,8 @@ export const startRunningLog = async (
     return { success: false, error: "Missing job data" };
   }
 
-  const lookup_code = `${jobData.route_card}-${jobData.op_code}`;
+  // FIX: Use the proper format for lookup_code, including contract_number
+  const lookup_code = `${jobData.route_card}-${jobData.contract_number}-${jobData.op_code}`;
 
   return createJobLog({
     lookup_code,
@@ -297,7 +300,8 @@ export const pauseJob = async (
   }
 
   // Then create the paused log
-  const lookup_code = `${jobData.route_card}-${jobData.op_code}`;
+  // FIX: Use the proper format for lookup_code, including contract_number
+  const lookup_code = `${jobData.route_card}-${jobData.contract_number}-${jobData.op_code}`;
 
   const pauseResult = await createJobLog({
     lookup_code,
