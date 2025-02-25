@@ -125,7 +125,7 @@ export const getCurrentJobLog = async (
   error?: string;
 }> => {
   try {
-    let url = `/api/logs/job?lookup_code=${encodeURIComponent(lookup_code)}`;
+    let url = `/api/logs/jobs?lookup_code=${encodeURIComponent(lookup_code)}`;
     if (state) {
       url += `&state=${encodeURIComponent(state)}`;
     }

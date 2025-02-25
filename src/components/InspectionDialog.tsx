@@ -67,7 +67,7 @@ export default function InspectionDialog({
           body: JSON.stringify({
             lookup_code,
             user_id: employeeId,
-            terminal_id: state.terminal.terminalId,
+            machine_id: state.terminal.terminalId,
             state: "INSPECTION",
             inspection_type: "1st_off",
             start_time: new Date().toISOString(),
@@ -95,7 +95,7 @@ export default function InspectionDialog({
           body: JSON.stringify({
             lookup_code,
             user_id: employeeId,
-            terminal_id: state.terminal.terminalId,
+            machine_id: state.terminal.terminalId,
             state: "INSPECTION",
             inspection_type: "in_process",
             start_time: new Date().toISOString(),
