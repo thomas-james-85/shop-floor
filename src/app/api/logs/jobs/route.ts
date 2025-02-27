@@ -114,7 +114,7 @@ export async function PATCH(req: Request) {
       UPDATE job_logs 
       SET ${updates.join(", ")} 
       WHERE log_id = $1 
-      RETURNING log_id, state, start_time, end_time`;
+      RETURNING log_id, state, start_time, end_time, completed_qty, user_id, lookup_code`;
 
     const result = await db.query(updateQuery, values);
 
@@ -143,7 +143,29 @@ export async function GET(req: Request) {
     const lookup_code = searchParams.get("lookup_code");
     const state = searchParams.get("state");
     const includeCompleted = searchParams.get("includeCompleted") === "true";
+    const log_id = searchParams.get("log_id");
 
+    // If log_id is provided, fetch the specific log
+    if (log_id) {
+      const result = await db.query(
+        `SELECT * FROM job_logs WHERE log_id = $1`,
+        [log_id]
+      );
+
+      if (result.rowCount === 0) {
+        return NextResponse.json(
+          { success: false, error: "Log not found" },
+          { status: 404 }
+        );
+      }
+
+      return NextResponse.json({
+        success: true,
+        log: result.rows[0],
+      });
+    }
+
+    // Otherwise, search by lookup_code and state
     if (!lookup_code) {
       return NextResponse.json(
         { error: "Missing lookup_code parameter" },

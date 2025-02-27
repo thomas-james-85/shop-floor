@@ -9,6 +9,7 @@ import PauseDialog from "./PauseDialog";
 import AbandonDialog from "./AbandonDialog";
 import { updateJobCompletion } from "@/utils/jobUpdates";
 import { completeRunningLog, abandonJob } from "@/utils/jobLogs";
+import { refreshJobData } from "@/utils/refreshJob";
 
 export default function StateControlButtons() {
   const { state, dispatch } = useTerminal();
@@ -37,26 +38,14 @@ export default function StateControlButtons() {
     if (!state.currentJob || !state.terminal.operationCode) return;
 
     try {
-      // We'll use the lookup code from the current job
-      const scan = `${state.currentJob.route_card}-${state.currentJob.contract_number}`;
+      const updatedJob = await refreshJobData(state.currentJob, state.terminal);
       
-      const response = await fetch("/api/jobs/lookup", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          scan: scan,
-          operation_code: state.terminal.operationCode,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (response.ok && !("error" in data)) {
+      if (updatedJob) {
         // Update current job with the latest data from server
-        dispatch(terminalActions.setCurrentJob(data));
-        console.log("Updated job data:", data);
+        dispatch(terminalActions.setCurrentJob(updatedJob));
+        console.log("Updated job data:", updatedJob);
       } else {
-        console.error("Failed to refresh job data:", data.error);
+        console.error("Failed to refresh job data");
       }
     } catch (error) {
       console.error("Error refreshing job data:", error);
@@ -203,6 +192,7 @@ export default function StateControlButtons() {
         await abandonJob(
           state.activeLogId,
           state.activeLogState,
+          state.currentJob,
           completedQty > 0 ? completedQty : undefined,
           abandonReason
         );

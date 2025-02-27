@@ -7,7 +7,9 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { authenticateUser } from "@/utils/authenticateUser";
 import { useTerminal, terminalActions } from "@/contexts/terminalContext";
-import { completeInspection } from "@/utils/jobLogs";
+import { completeInspection, completeSetupLog } from "@/utils/jobLogs";
+import { EfficiencyMetrics } from "@/utils/efficiencyCalculator";
+import EfficiencyDisplay from "./EfficiencyDisplay";
 
 type InspectionType = "1st_off" | "in_process";
 
@@ -31,6 +33,10 @@ export default function InspectionDialog({
   const [error, setError] = useState("");
   const [inspector, setInspector] = useState("");
   const [inspectionLogId, setInspectionLogId] = useState<number | null>(null);
+  
+  // For efficiency display
+  const [showEfficiency, setShowEfficiency] = useState<boolean>(false);
+  const [efficiencyMetrics, setEfficiencyMetrics] = useState<EfficiencyMetrics | null>(null);
 
   const handleInspectorScan = async () => {
     if (!employeeId.trim()) {
@@ -137,29 +143,63 @@ export default function InspectionDialog({
         inspectionType === "in_process" ? Number(inspectionQty) || 1 : 1
       );
 
-      // If this was a first-off inspection that passed, end the setup log
-      if (inspectionType === "1st_off" && state.activeLogId && state.activeLogState === "SETUP") {
-        // Now end the setup log since inspection passed
-        const updateResult = await fetch("/api/logs/jobs", {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            log_id: state.activeLogId,
-            end_time: new Date().toISOString()
-          }),
-        });
+      // If this was a first-off inspection that passed, end the setup log and log efficiency
+      if (inspectionType === "1st_off" && state.activeLogId && state.activeLogState === "SETUP" && state.currentJob) {
+        setLoading(true);
         
-        const data = await updateResult.json();
-        if (!data.success) {
-          console.error("Failed to complete setup log:", data.error);
+        // Complete the setup log and log efficiency
+        const setupResult = await completeSetupLog(
+          state.activeLogId,
+          state.currentJob,
+          `Setup passed inspection by ${inspector}. ${comments}`
+        );
+        
+        if (setupResult.success) {
+          // Get efficiency metrics from the API
+          if (setupResult.efficiencyTracked) {
+            try {
+              const efficiencyResponse = await fetch(`/api/logs/efficiency?job_log_id=${state.activeLogId}`);
+              const efficiencyData = await efficiencyResponse.json();
+              
+              if (efficiencyResponse.ok && efficiencyData.success && efficiencyData.logs && efficiencyData.logs.length > 0) {
+                // Transform API response to EfficiencyMetrics format
+                const effLog = efficiencyData.logs[0];
+                setEfficiencyMetrics({
+                  planned: effLog.planned_time,
+                  actual: effLog.actual_time,
+                  efficiency: effLog.efficiency,
+                  timeSaved: effLog.time_difference
+                });
+                setShowEfficiency(true);
+              }
+            } catch (error) {
+              console.error("Error fetching efficiency metrics:", error);
+            }
+          }
+          
+          // Update terminal state to inspection required
+          dispatch(terminalActions.setTerminalState("INSPECTION_REQUIRED"));
+        } else {
+          console.error("Failed to complete setup log:", setupResult.error);
         }
         
-        // Update terminal state to inspection required
-        dispatch(terminalActions.setTerminalState("INSPECTION_REQUIRED"));
+        if (!showEfficiency) {
+          setLoading(false);
+        }
       }
     }
 
-    // Call the onComplete handler from parent component
+    // Call the onComplete handler from parent component only if we're not showing efficiency
+    if (!showEfficiency) {
+      onComplete(true, inspector, comments);
+    }
+  };
+
+  const handleEfficiencyClose = () => {
+    setShowEfficiency(false);
+    setLoading(false);
+    
+    // Now complete the inspection process
     onComplete(true, inspector, comments);
   };
 
@@ -189,107 +229,120 @@ export default function InspectionDialog({
   };
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center bg-gray-900 bg-opacity-50 z-50">
-      <Card className="w-[500px] p-6 bg-white rounded-lg shadow-lg">
-        <CardContent className="flex flex-col items-center space-y-4">
-          {step === "auth" ? (
-            <>
-              <h2 className="text-xl font-bold mb-4">
-                {inspectionType === "1st_off"
-                  ? "First-Off Inspection"
-                  : "In-Process Inspection"}{" "}
-                Required
-              </h2>
-              <p className="text-center mb-4">
-                Please scan inspector ID to verify and inspect the{" "}
-                {inspectionType === "1st_off" ? "setup" : "production"}
-              </p>
+    <>
+      <div className="fixed inset-0 flex items-center justify-center bg-gray-900 bg-opacity-50 z-50">
+        <Card className="w-[500px] p-6 bg-white rounded-lg shadow-lg">
+          <CardContent className="flex flex-col items-center space-y-4">
+            {step === "auth" ? (
+              <>
+                <h2 className="text-xl font-bold mb-4">
+                  {inspectionType === "1st_off"
+                    ? "First-Off Inspection"
+                    : "In-Process Inspection"}{" "}
+                  Required
+                </h2>
+                <p className="text-center mb-4">
+                  Please scan inspector ID to verify and inspect the{" "}
+                  {inspectionType === "1st_off" ? "setup" : "production"}
+                </p>
 
-              {error && <p className="text-red-500 text-sm">{error}</p>}
+                {error && <p className="text-red-500 text-sm">{error}</p>}
 
-              <Input
-                type="text"
-                placeholder="Scan or Enter Inspector ID"
-                value={employeeId}
-                onChange={(e) => setEmployeeId(e.target.value)}
-                onKeyDown={handleKeyDown}
-                disabled={loading}
-                autoFocus
-                className="w-full"
-              />
-
-              <div className="flex space-x-4 w-full justify-center mt-4">
-                <Button
-                  onClick={handleInspectorScan}
+                <Input
+                  type="text"
+                  placeholder="Scan or Enter Inspector ID"
+                  value={employeeId}
+                  onChange={(e) => setEmployeeId(e.target.value)}
+                  onKeyDown={handleKeyDown}
                   disabled={loading}
-                  className="bg-blue-500 hover:bg-blue-600 text-white"
-                >
-                  {loading ? "Verifying..." : "Verify Inspector"}
-                </Button>
-                <Button
-                  onClick={onCancel}
-                  className="bg-gray-500 hover:bg-gray-600 text-white"
-                >
-                  Cancel
-                </Button>
-              </div>
-            </>
-          ) : (
-            <>
-              <h2 className="text-xl font-bold">
-                {inspectionType === "1st_off"
-                  ? "First-Off Inspection"
-                  : "In-Process Inspection"}
-              </h2>
-              <p className="text-center mb-2">
-                Inspector: <span className="font-semibold">{inspector}</span>
-              </p>
+                  autoFocus
+                  className="w-full"
+                />
 
-              <div className="w-full">
-                {inspectionType === "in_process" && (
-                  <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Inspection Quantity:
-                    </label>
-                    <Input
-                      type="number"
-                      min="1"
-                      value={inspectionQty}
-                      onChange={(e) => setInspectionQty(e.target.value)}
-                      className="w-full"
-                    />
-                  </div>
-                )}
+                <div className="flex space-x-4 w-full justify-center mt-4">
+                  <Button
+                    onClick={handleInspectorScan}
+                    disabled={loading}
+                    className="bg-blue-500 hover:bg-blue-600 text-white"
+                  >
+                    {loading ? "Verifying..." : "Verify Inspector"}
+                  </Button>
+                  <Button
+                    onClick={onCancel}
+                    className="bg-gray-500 hover:bg-gray-600 text-white"
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <>
+                <h2 className="text-xl font-bold">
+                  {inspectionType === "1st_off"
+                    ? "First-Off Inspection"
+                    : "In-Process Inspection"}
+                </h2>
+                <p className="text-center mb-2">
+                  Inspector: <span className="font-semibold">{inspector}</span>
+                </p>
 
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Inspection Comments:
-                </label>
-                <textarea
-                  className="w-full h-32 p-2 border border-gray-300 rounded-md resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="Enter inspection comments, observations, or issues..."
-                  value={comments}
-                  onChange={(e) => setComments(e.target.value)}
-                ></textarea>
-              </div>
+                <div className="w-full">
+                  {inspectionType === "in_process" && (
+                    <div className="mb-4">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Inspection Quantity:
+                      </label>
+                      <Input
+                        type="number"
+                        min="1"
+                        value={inspectionQty}
+                        onChange={(e) => setInspectionQty(e.target.value)}
+                        className="w-full"
+                      />
+                    </div>
+                  )}
 
-              <div className="flex space-x-4 w-full justify-center mt-4">
-                <Button
-                  onClick={handleInspectionPass}
-                  className="bg-green-500 hover:bg-green-600 text-white"
-                >
-                  Pass Inspection
-                </Button>
-                <Button
-                  onClick={handleInspectionFail}
-                  className="bg-red-500 hover:bg-red-600 text-white"
-                >
-                  Fail Inspection
-                </Button>
-              </div>
-            </>
-          )}
-        </CardContent>
-      </Card>
-    </div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Inspection Comments:
+                  </label>
+                  <textarea
+                    className="w-full h-32 p-2 border border-gray-300 rounded-md resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Enter inspection comments, observations, or issues..."
+                    value={comments}
+                    onChange={(e) => setComments(e.target.value)}
+                  ></textarea>
+                </div>
+
+                <div className="flex space-x-4 w-full justify-center mt-4">
+                  <Button
+                    onClick={handleInspectionPass}
+                    className="bg-green-500 hover:bg-green-600 text-white"
+                    disabled={loading}
+                  >
+                    {loading ? "Processing..." : "Pass Inspection"}
+                  </Button>
+                  <Button
+                    onClick={handleInspectionFail}
+                    className="bg-red-500 hover:bg-red-600 text-white"
+                    disabled={loading}
+                  >
+                    Fail Inspection
+                  </Button>
+                </div>
+              </>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Efficiency Display */}
+      {showEfficiency && efficiencyMetrics && (
+        <EfficiencyDisplay 
+          metrics={efficiencyMetrics} 
+          process="Setup" 
+          onClose={handleEfficiencyClose} 
+        />
+      )}
+    </>
   );
 }
