@@ -1,4 +1,4 @@
-// src/components/PauseDialog.tsx - REPLACE EXISTING FILE WITH THIS CONTENT
+// src/components/PauseDialog.tsx
 "use client";
 
 import { useState } from "react";
@@ -10,15 +10,15 @@ import { pauseJob } from "@/utils/jobLogs";
 import { updateJobCompletion } from "@/utils/jobUpdates";
 
 type PauseDialogProps = {
-  onPause: (reason: string) => void;
+  onPause: (reason: string, updatedJob?: any) => void;
   onCancel: () => void;
   employeeId?: string;
 };
 
-export default function PauseDialog({ 
-  onPause, 
-  onCancel, 
-  employeeId = "" 
+export default function PauseDialog({
+  onPause,
+  onCancel,
+  employeeId = "",
 }: PauseDialogProps) {
   const { state, dispatch } = useTerminal();
   const [reason, setReason] = useState<string>("");
@@ -51,7 +51,7 @@ export default function PauseDialog({
       ) {
         // Use the employeeId prop instead of the user name
         const operatorId = employeeId || "unknown";
-        
+
         const logResult = await pauseJob(
           state.activeLogId,
           qty,
@@ -76,6 +76,7 @@ export default function PauseDialog({
         }
 
         // Update the job in the database if quantity > 0
+        let updatedJobData = null;
         if (qty > 0 && state.currentJob) {
           const jobResult = await updateJobCompletion(state.currentJob, qty);
 
@@ -85,6 +86,22 @@ export default function PauseDialog({
             console.warn("Job update failed, but pause was successful");
           } else {
             console.log("Job updated successfully:", jobResult.updatedJob);
+            updatedJobData = jobResult.updatedJob;
+
+            // Update the current job in state with new balance and completed_qty
+            if (updatedJobData && state.currentJob) {
+              const updatedJob = {
+                ...state.currentJob,
+                completed_qty:
+                  updatedJobData.completed_qty ||
+                  state.currentJob.completed_qty,
+                balance: updatedJobData.balance || state.currentJob.balance,
+                status: updatedJobData.status || state.currentJob.status,
+              };
+
+              // Update the current job in state
+              dispatch(terminalActions.setCurrentJob(updatedJob));
+            }
           }
         }
       } else {

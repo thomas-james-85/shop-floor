@@ -6,8 +6,9 @@ import InspectionDialog from "@/components/InspectionDialog";
 import OperatorAuthDialog from "@/components/OperatorAuthDialog";
 import CompletionDialog from "@/components/CompletionDialog";
 import PauseDialog from "./PauseDialog";
+import AbandonDialog from "./AbandonDialog";
 import { updateJobCompletion } from "@/utils/jobUpdates";
-import { completeRunningLog } from "@/utils/jobLogs";
+import { completeRunningLog, abandonJob } from "@/utils/jobLogs";
 
 export default function StateControlButtons() {
   const { state, dispatch } = useTerminal();
@@ -18,6 +19,7 @@ export default function StateControlButtons() {
   const [showOperatorAuthDialog, setShowOperatorAuthDialog] = useState(false);
   const [showCompletionDialog, setShowCompletionDialog] = useState(false);
   const [showPauseDialog, setShowPauseDialog] = useState(false);
+  const [showAbandonDialog, setShowAbandonDialog] = useState(false);
   const [isResuming, setIsResuming] = useState(false);
   const [inspectionType, setInspectionType] = useState<
     "1st_off" | "in_process"
@@ -29,6 +31,37 @@ export default function StateControlButtons() {
 
   // Don't render if no job is loaded
   if (!state.currentJob) return null;
+
+  // Function to fetch the latest job data
+  const fetchLatestJobData = async () => {
+    if (!state.currentJob || !state.terminal.operationCode) return;
+
+    try {
+      // We'll use the lookup code from the current job
+      const scan = `${state.currentJob.route_card}-${state.currentJob.contract_number}`;
+      
+      const response = await fetch("/api/jobs/lookup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          scan: scan,
+          operation_code: state.terminal.operationCode,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok && !("error" in data)) {
+        // Update current job with the latest data from server
+        dispatch(terminalActions.setCurrentJob(data));
+        console.log("Updated job data:", data);
+      } else {
+        console.error("Failed to refresh job data:", data.error);
+      }
+    } catch (error) {
+      console.error("Error refreshing job data:", error);
+    }
+  };
 
   // Handle setup complete button - triggers first-off inspection
   const handleSetupComplete = () => {
@@ -102,11 +135,23 @@ export default function StateControlButtons() {
 
     // Reset resume flag
     setIsResuming(false);
+    
+    // Fetch latest job data to ensure we have up-to-date values
+    fetchLatestJobData();
   };
 
   // Handle job completion
-  const handleJobComplete = (completedQty: number) => {
+  const handleJobComplete = async (completedQty: number) => {
     console.log(`Job completed with quantity: ${completedQty}`);
+
+    try {
+      // Update the job in the database if quantity > 0
+      if (completedQty > 0 && state.currentJob) {
+        await updateJobCompletion(state.currentJob, completedQty);
+      }
+    } catch (error) {
+      console.error("Error updating job completion:", error);
+    }
 
     // Clear user
     dispatch(terminalActions.setLoggedInUser(null));
@@ -146,53 +191,44 @@ export default function StateControlButtons() {
     setShowOperatorAuthDialog(true);
   };
 
-  // Handle job abandonment with quantity tracking
-  const handleAbandon = async () => {
-    // We need to handle the case where we're abandoning a running job that may have produced parts
-    if (
-      state.activeLogId &&
-      state.activeLogState === "RUNNING" &&
-      state.currentJob
-    ) {
-      // Ask for a quantity if in RUNNING state
-      const confirmAbandon = window.confirm("Do you want to abandon this job?");
+  // Handle job abandonment
+  const handleAbandon = async (completedQty: number, abandonReason: string) => {
+    console.log(`Abandoning job with reason: ${abandonReason}`);
+    console.log(`Completed quantity: ${completedQty}`);
 
-      if (!confirmAbandon) {
-        return;
-      }
+    try {
+      // If we have an active log, mark it as abandoned
+      if (state.activeLogId && state.activeLogState && state.currentJob) {
+        // Complete the active log with abandonment
+        await abandonJob(
+          state.activeLogId,
+          state.activeLogState,
+          completedQty > 0 ? completedQty : undefined,
+          abandonReason
+        );
 
-      // Ask for completed quantity
-      const qtySoFar = window.prompt(
-        "Enter quantity completed so far (0 if none):",
-        "0"
-      );
-      const qty = parseInt(qtySoFar || "0");
-
-      if (!isNaN(qty) && qty > 0) {
-        try {
-          // Complete the running log
-          await completeRunningLog(state.activeLogId, qty);
-
-          // Update the job in the database
-          await updateJobCompletion(state.currentJob, qty);
-
-          console.log(`Job abandoned with ${qty} parts completed`);
-        } catch (error) {
-          console.error("Error during job abandonment:", error);
+        // Update the job in the database if quantity > 0
+        if (completedQty > 0) {
+          await updateJobCompletion(state.currentJob, completedQty);
         }
       }
+    } catch (error) {
+      console.error("Error during job abandonment:", error);
     }
 
     // Clear user
     dispatch(terminalActions.setLoggedInUser(null));
     localStorage.removeItem("loggedUser");
 
-    // Clear job and active log tracking
+    // Clear job and active log
     dispatch(terminalActions.resetJob());
     dispatch(terminalActions.clearActiveLog());
 
     // Reset terminal state
     dispatch(terminalActions.setTerminalState("IDLE"));
+
+    // Close abandon dialog
+    setShowAbandonDialog(false);
   };
 
   return (
@@ -231,7 +267,7 @@ export default function StateControlButtons() {
           </Button>
         )}
 
-        {/* Pause button - now opens pause dialog */}
+        {/* Pause button - opens pause dialog */}
         {terminalState === "RUNNING" && (
           <Button
             onClick={() => setShowPauseDialog(true)}
@@ -241,7 +277,7 @@ export default function StateControlButtons() {
           </Button>
         )}
 
-        {/* Resume button - now triggers authentication flow */}
+        {/* Resume button - triggers authentication flow */}
         {terminalState === "PAUSED" && (
           <Button
             onClick={handleResume}
@@ -264,9 +300,9 @@ export default function StateControlButtons() {
           </Button>
         )}
 
-        {/* Abandon Button - Clears User and Job */}
+        {/* Abandon Button - Opens abandon dialog */}
         <Button
-          onClick={handleAbandon}
+          onClick={() => setShowAbandonDialog(true)}
           className="bg-red-500 hover:bg-red-600 text-white"
         >
           Abandon
@@ -315,7 +351,16 @@ export default function StateControlButtons() {
         <PauseDialog
           onPause={handlePause}
           onCancel={() => setShowPauseDialog(false)}
-          employeeId={authenticatedEmployeeId} // Pass the stored employee ID
+          employeeId={authenticatedEmployeeId}
+        />
+      )}
+
+      {/* Abandon Dialog */}
+      {showAbandonDialog && (
+        <AbandonDialog
+          onAbandon={handleAbandon}
+          onCancel={() => setShowAbandonDialog(false)}
+          requireQty={terminalState === "RUNNING" || terminalState === "PAUSED"}
         />
       )}
     </>

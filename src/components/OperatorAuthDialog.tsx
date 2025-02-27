@@ -1,7 +1,7 @@
 // src/components/OperatorAuthDialog.tsx
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -10,7 +10,7 @@ import { useTerminal, terminalActions } from "@/contexts/terminalContext";
 import { startRunningLog, resumeJob } from "@/utils/jobLogs";
 
 type OperatorAuthDialogProps = {
-  onAuthenticated: (operatorName: string, operatorId: string) => void; // Updated to pass ID
+  onAuthenticated: (operatorName: string, operatorId: string) => void;
   onCancel: () => void;
   isResume?: boolean; // Flag to indicate if this is for resuming a paused job
 };
@@ -24,6 +24,43 @@ export default function OperatorAuthDialog({
   const [employeeId, setEmployeeId] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  // Function to fetch the latest job data
+  const fetchLatestJobData = async () => {
+    if (!state.currentJob || !state.terminal.operationCode) return;
+
+    try {
+      const lookup_code = `${state.currentJob.route_card}-${state.currentJob.contract_number}-${state.currentJob.op_code}`;
+
+      const response = await fetch("/api/jobs/lookup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          scan: lookup_code,
+          operation_code: state.terminal.operationCode,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok && !("error" in data)) {
+        // Update current job with the latest data from server
+        dispatch(terminalActions.setCurrentJob(data));
+        console.log("Updated job data:", data);
+      } else {
+        console.error("Failed to refresh job data:", data.error);
+      }
+    } catch (error) {
+      console.error("Error refreshing job data:", error);
+    }
+  };
+
+  useEffect(() => {
+    // When resuming a job, fetch the latest job data
+    if (isResume) {
+      fetchLatestJobData();
+    }
+  }, [isResume]);
 
   const handleOperatorScan = async () => {
     if (!employeeId.trim()) {
@@ -43,6 +80,9 @@ export default function OperatorAuthDialog({
         return;
       }
 
+      // Refresh job data before proceeding, especially important for resume
+      await fetchLatestJobData();
+
       // Create appropriate log entry based on context
       if (state.currentJob) {
         if (
@@ -52,12 +92,12 @@ export default function OperatorAuthDialog({
         ) {
           // Resuming from PAUSED state
           console.log("Resuming job with operator ID:", employeeId);
-          
+
           const logResult = await resumeJob(
             state.activeLogId,
             state.currentJob,
             state.terminal,
-            employeeId // Use the employee ID here
+            employeeId
           );
 
           if (logResult.success && logResult.running_log_id) {
@@ -75,7 +115,7 @@ export default function OperatorAuthDialog({
           const logResult = await startRunningLog(
             state.currentJob,
             state.terminal,
-            employeeId // Use the employee ID here
+            employeeId
           );
 
           if (logResult.success && logResult.log_id) {
