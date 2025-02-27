@@ -6,6 +6,8 @@ import InspectionDialog from "@/components/InspectionDialog";
 import OperatorAuthDialog from "@/components/OperatorAuthDialog";
 import CompletionDialog from "@/components/CompletionDialog";
 import PauseDialog from "./PauseDialog";
+import AbandonDialog from "./AbandonDialog";
+import { abandonJob } from "@/utils/jobLogs";
 
 export default function StateControlButtons() {
   const { state, dispatch } = useTerminal();
@@ -16,13 +18,15 @@ export default function StateControlButtons() {
   const [showOperatorAuthDialog, setShowOperatorAuthDialog] = useState(false);
   const [showCompletionDialog, setShowCompletionDialog] = useState(false);
   const [showPauseDialog, setShowPauseDialog] = useState(false);
+  const [showAbandonDialog, setShowAbandonDialog] = useState(false);
   const [isResuming, setIsResuming] = useState(false);
   const [inspectionType, setInspectionType] = useState<
     "1st_off" | "in_process"
   >("1st_off");
-  
+
   // Track the authenticated employee ID for logging purposes
-  const [authenticatedEmployeeId, setAuthenticatedEmployeeId] = useState<string>("");
+  const [authenticatedEmployeeId, setAuthenticatedEmployeeId] =
+    useState<string>("");
 
   // Don't render if no job is loaded
   if (!state.currentJob) return null;
@@ -56,7 +60,7 @@ export default function StateControlButtons() {
         // Note: The setup log is completed inside InspectionDialog when inspection passes
         dispatch(terminalActions.setTerminalState("INSPECTION_REQUIRED"));
       }
-      
+
       // For in-process inspection that passes, we don't need to change anything
       // Show operator authentication dialog if first-off inspection passed
       if (inspectionType === "1st_off") {
@@ -81,10 +85,13 @@ export default function StateControlButtons() {
   };
 
   // Handle operator authentication
-  const handleOperatorAuthenticated = (operatorName: string, operatorId: string) => {
+  const handleOperatorAuthenticated = (
+    operatorName: string,
+    operatorId: string
+  ) => {
     // Store the employee ID for future use
     setAuthenticatedEmployeeId(operatorId);
-    
+
     // Update terminal with operator name
     dispatch(terminalActions.setLoggedInUser(operatorName));
 
@@ -119,7 +126,7 @@ export default function StateControlButtons() {
   // Handle pause operation
   const handlePause = (pauseReason: string) => {
     console.log(`Pausing operation with reason: ${pauseReason}`);
-    
+
     // Log out the current user
     dispatch(terminalActions.setLoggedInUser(null));
     localStorage.removeItem("loggedUser");
@@ -140,17 +147,61 @@ export default function StateControlButtons() {
     setShowOperatorAuthDialog(true);
   };
 
-  const handleAbandon = () => {
-    // Clear user
-    dispatch(terminalActions.setLoggedInUser(null));
-    localStorage.removeItem("loggedUser");
+  // Handle job abandonment
+  const handleAbandon = async (completedQty: number, reason: string) => {
+    console.log(
+      `Abandoning job with reason: ${reason}, completed qty: ${completedQty}`
+    );
 
-    // Clear job and active log tracking
-    dispatch(terminalActions.resetJob());
-    dispatch(terminalActions.clearActiveLog());
+    try {
+      // Close active log based on current state
+      if (state.activeLogId && state.activeLogState) {
+        const logResult = await abandonJob(
+          state.activeLogId,
+          state.activeLogState,
+          completedQty,
+          reason
+        );
 
-    // Reset terminal state
-    dispatch(terminalActions.setTerminalState("IDLE"));
+        if (!logResult.success) {
+          console.error("Failed to log job abandonment:", logResult.error);
+        }
+      }
+
+      // Clear user
+      dispatch(terminalActions.setLoggedInUser(null));
+      localStorage.removeItem("loggedUser");
+
+      // Clear job and active log tracking
+      dispatch(terminalActions.resetJob());
+      dispatch(terminalActions.clearActiveLog());
+
+      // Reset terminal state
+      dispatch(terminalActions.setTerminalState("IDLE"));
+
+      // Close the dialog
+      setShowAbandonDialog(false);
+    } catch (error) {
+      console.error("Error during job abandonment:", error);
+    }
+  };
+
+  // Initial abandon button handler - now decides whether to show dialog based on state
+  const handleAbandonClick = () => {
+    if (!state.activeLogId || !state.activeLogState) {
+      // No active log, just reset everything
+      dispatch(terminalActions.setLoggedInUser(null));
+      localStorage.removeItem("loggedUser");
+      dispatch(terminalActions.resetJob());
+      dispatch(terminalActions.setTerminalState("IDLE"));
+      return;
+    }
+
+    // Determine if we need quantity input (only for RUNNING state)
+    const requireQty = state.activeLogState === "RUNNING";
+
+    // Show the abandon dialog
+    setShowAbandonDialog(true);
   };
 
   return (
@@ -222,9 +273,9 @@ export default function StateControlButtons() {
           </Button>
         )}
 
-        {/* Abandon Button - Clears User and Job */}
+        {/* Abandon Button - Updated to properly handle and log abandonment */}
         <Button
-          onClick={handleAbandon}
+          onClick={handleAbandonClick}
           className="bg-red-500 hover:bg-red-600 text-white"
         >
           Abandon
@@ -274,6 +325,15 @@ export default function StateControlButtons() {
           onPause={handlePause}
           onCancel={() => setShowPauseDialog(false)}
           employeeId={authenticatedEmployeeId} // Pass the stored employee ID
+        />
+      )}
+
+      {/* Abandon Dialog */}
+      {showAbandonDialog && (
+        <AbandonDialog
+          onAbandon={handleAbandon}
+          onCancel={() => setShowAbandonDialog(false)}
+          requireQty={state.activeLogState === "RUNNING"}
         />
       )}
     </>

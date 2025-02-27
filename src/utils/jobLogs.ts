@@ -278,6 +278,36 @@ export const completeRunningLog = async (
 };
 
 /**
+ * End an active log when a job is abandoned
+ */
+export const abandonJob = async (
+  log_id: number,
+  logState: "SETUP" | "RUNNING" | "PAUSED" | "INSPECTION",
+  completedQty?: number,
+  abandonReason?: string
+): Promise<JobLogResponse> => {
+  try {
+    const updateParams: JobLogUpdateParams = {
+      end_time: true,
+      comments: abandonReason ? `ABANDONED: ${abandonReason}` : "ABANDONED",
+    };
+
+    // Only add completed quantity for RUNNING logs
+    if (logState === "RUNNING" && completedQty !== undefined) {
+      updateParams.completed_qty = completedQty;
+    }
+
+    return updateJobLog(log_id, updateParams);
+  } catch (error) {
+    console.error("Error abandoning job:", error);
+    return {
+      success: false,
+      error: "Failed to log job abandonment",
+    };
+  }
+};
+
+/**
  * Pause a job: end current RUNNING log and create PAUSED log
  */
 export const pauseJob = async (
@@ -322,7 +352,10 @@ export const pauseJob = async (
     };
   } catch (error) {
     console.error("Error during pause job:", error);
-    return { success: false, error: "An unexpected error occurred during job pause" };
+    return {
+      success: false,
+      error: "An unexpected error occurred during job pause",
+    };
   }
 };
 
@@ -346,22 +379,35 @@ export const resumeJob = async (
     });
 
     if (!updateResult.success) {
-      return { success: false, error: updateResult.error || "Failed to end paused log" };
+      return {
+        success: false,
+        error: updateResult.error || "Failed to end paused log",
+      };
     }
 
     // Then create the new running log
-    const runningLogResult = await startRunningLog(jobData, terminalData, operatorId);
-    
+    const runningLogResult = await startRunningLog(
+      jobData,
+      terminalData,
+      operatorId
+    );
+
     if (!runningLogResult.success) {
-      return { success: false, error: runningLogResult.error || "Failed to create running log" };
+      return {
+        success: false,
+        error: runningLogResult.error || "Failed to create running log",
+      };
     }
-    
+
     return {
       success: true,
-      running_log_id: runningLogResult.log_id
+      running_log_id: runningLogResult.log_id,
     };
   } catch (error) {
     console.error("Resume Job Error:", error);
-    return { success: false, error: "An unexpected error occurred during job resumption" };
+    return {
+      success: false,
+      error: "An unexpected error occurred during job resumption",
+    };
   }
 };
