@@ -1,4 +1,4 @@
-// src/components/CompletionDialog.tsx
+// src/components/CompletionDialog.tsx - REPLACE EXISTING FILE WITH THIS CONTENT
 "use client";
 
 import { useState } from "react";
@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useTerminal, terminalActions } from "@/contexts/terminalContext";
 import { completeRunningLog } from "@/utils/jobLogs";
+import { updateJobCompletion } from "@/utils/jobUpdates";
 
 type CompletionDialogProps = {
   onComplete: (completedQty: number) => void;
@@ -36,11 +37,12 @@ export default function CompletionDialog({
       return;
     }
 
-    // If we have an active running log, update it
-    if (state.activeLogId && state.activeLogState === "RUNNING") {
-      setIsLogging(true);
+    setIsLogging(true);
+    setError("");
 
-      try {
+    try {
+      // If we have an active running log, update it
+      if (state.activeLogId && state.activeLogState === "RUNNING") {
         const logResult = await completeRunningLog(state.activeLogId, qty);
 
         if (!logResult.success) {
@@ -52,20 +54,31 @@ export default function CompletionDialog({
 
         // Clear active log in context
         dispatch(terminalActions.clearActiveLog());
-      } catch (error) {
-        console.error("Error completing running log:", error);
-        setError("An error occurred. Please try again.");
-        setIsLogging(false);
-        return;
+      } else {
+        console.warn("No active running log found for completion");
       }
 
-      setIsLogging(false);
-    } else {
-      console.warn("No active running log found for completion");
-    }
+      // Update the job in the database
+      if (state.currentJob) {
+        const jobResult = await updateJobCompletion(state.currentJob, qty);
 
-    // Call the onComplete callback with the completed quantity
-    onComplete(qty);
+        if (!jobResult.success) {
+          console.error("Failed to update job:", jobResult.error);
+          setError("Failed to update job data. Please try again.");
+          setIsLogging(false);
+          return;
+        }
+
+        console.log("Job updated successfully:", jobResult.updatedJob);
+      }
+
+      // Call the onComplete callback with the completed quantity
+      onComplete(qty);
+    } catch (error) {
+      console.error("Completion Error:", error);
+      setError("An error occurred. Please try again.");
+      setIsLogging(false);
+    }
   };
 
   // Handle Enter key press
@@ -96,7 +109,9 @@ export default function CompletionDialog({
             </p>
             <p className="text-gray-700">
               Balance:{" "}
-              <span className="font-semibold">{state.currentJob?.balance}</span>
+              <span className="font-semibold">
+                {state.currentJob?.balance || state.currentJob?.quantity}
+              </span>
             </p>
           </div>
 

@@ -6,8 +6,8 @@ import InspectionDialog from "@/components/InspectionDialog";
 import OperatorAuthDialog from "@/components/OperatorAuthDialog";
 import CompletionDialog from "@/components/CompletionDialog";
 import PauseDialog from "./PauseDialog";
-import AbandonDialog from "./AbandonDialog";
-import { abandonJob } from "@/utils/jobLogs";
+import { updateJobCompletion } from "@/utils/jobUpdates";
+import { completeRunningLog } from "@/utils/jobLogs";
 
 export default function StateControlButtons() {
   const { state, dispatch } = useTerminal();
@@ -18,7 +18,6 @@ export default function StateControlButtons() {
   const [showOperatorAuthDialog, setShowOperatorAuthDialog] = useState(false);
   const [showCompletionDialog, setShowCompletionDialog] = useState(false);
   const [showPauseDialog, setShowPauseDialog] = useState(false);
-  const [showAbandonDialog, setShowAbandonDialog] = useState(false);
   const [isResuming, setIsResuming] = useState(false);
   const [inspectionType, setInspectionType] = useState<
     "1st_off" | "in_process"
@@ -147,61 +146,53 @@ export default function StateControlButtons() {
     setShowOperatorAuthDialog(true);
   };
 
-  // Handle job abandonment
-  const handleAbandon = async (completedQty: number, reason: string) => {
-    console.log(
-      `Abandoning job with reason: ${reason}, completed qty: ${completedQty}`
-    );
+  // Handle job abandonment with quantity tracking
+  const handleAbandon = async () => {
+    // We need to handle the case where we're abandoning a running job that may have produced parts
+    if (
+      state.activeLogId &&
+      state.activeLogState === "RUNNING" &&
+      state.currentJob
+    ) {
+      // Ask for a quantity if in RUNNING state
+      const confirmAbandon = window.confirm("Do you want to abandon this job?");
 
-    try {
-      // Close active log based on current state
-      if (state.activeLogId && state.activeLogState) {
-        const logResult = await abandonJob(
-          state.activeLogId,
-          state.activeLogState,
-          completedQty,
-          reason
-        );
-
-        if (!logResult.success) {
-          console.error("Failed to log job abandonment:", logResult.error);
-        }
+      if (!confirmAbandon) {
+        return;
       }
 
-      // Clear user
-      dispatch(terminalActions.setLoggedInUser(null));
-      localStorage.removeItem("loggedUser");
+      // Ask for completed quantity
+      const qtySoFar = window.prompt(
+        "Enter quantity completed so far (0 if none):",
+        "0"
+      );
+      const qty = parseInt(qtySoFar || "0");
 
-      // Clear job and active log tracking
-      dispatch(terminalActions.resetJob());
-      dispatch(terminalActions.clearActiveLog());
+      if (!isNaN(qty) && qty > 0) {
+        try {
+          // Complete the running log
+          await completeRunningLog(state.activeLogId, qty);
 
-      // Reset terminal state
-      dispatch(terminalActions.setTerminalState("IDLE"));
+          // Update the job in the database
+          await updateJobCompletion(state.currentJob, qty);
 
-      // Close the dialog
-      setShowAbandonDialog(false);
-    } catch (error) {
-      console.error("Error during job abandonment:", error);
-    }
-  };
-
-  // Initial abandon button handler - now decides whether to show dialog based on state
-  const handleAbandonClick = () => {
-    if (!state.activeLogId || !state.activeLogState) {
-      // No active log, just reset everything
-      dispatch(terminalActions.setLoggedInUser(null));
-      localStorage.removeItem("loggedUser");
-      dispatch(terminalActions.resetJob());
-      dispatch(terminalActions.setTerminalState("IDLE"));
-      return;
+          console.log(`Job abandoned with ${qty} parts completed`);
+        } catch (error) {
+          console.error("Error during job abandonment:", error);
+        }
+      }
     }
 
-    // Determine if we need quantity input (only for RUNNING state)
-    const requireQty = state.activeLogState === "RUNNING";
+    // Clear user
+    dispatch(terminalActions.setLoggedInUser(null));
+    localStorage.removeItem("loggedUser");
 
-    // Show the abandon dialog
-    setShowAbandonDialog(true);
+    // Clear job and active log tracking
+    dispatch(terminalActions.resetJob());
+    dispatch(terminalActions.clearActiveLog());
+
+    // Reset terminal state
+    dispatch(terminalActions.setTerminalState("IDLE"));
   };
 
   return (
@@ -273,9 +264,9 @@ export default function StateControlButtons() {
           </Button>
         )}
 
-        {/* Abandon Button - Updated to properly handle and log abandonment */}
+        {/* Abandon Button - Clears User and Job */}
         <Button
-          onClick={handleAbandonClick}
+          onClick={handleAbandon}
           className="bg-red-500 hover:bg-red-600 text-white"
         >
           Abandon
@@ -325,15 +316,6 @@ export default function StateControlButtons() {
           onPause={handlePause}
           onCancel={() => setShowPauseDialog(false)}
           employeeId={authenticatedEmployeeId} // Pass the stored employee ID
-        />
-      )}
-
-      {/* Abandon Dialog */}
-      {showAbandonDialog && (
-        <AbandonDialog
-          onAbandon={handleAbandon}
-          onCancel={() => setShowAbandonDialog(false)}
-          requireQty={state.activeLogState === "RUNNING"}
         />
       )}
     </>

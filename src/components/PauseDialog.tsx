@@ -1,4 +1,4 @@
-// src/components/PauseDialog.tsx
+// src/components/PauseDialog.tsx - REPLACE EXISTING FILE WITH THIS CONTENT
 "use client";
 
 import { useState } from "react";
@@ -7,14 +7,19 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useTerminal, terminalActions } from "@/contexts/terminalContext";
 import { pauseJob } from "@/utils/jobLogs";
+import { updateJobCompletion } from "@/utils/jobUpdates";
 
 type PauseDialogProps = {
   onPause: (reason: string) => void;
   onCancel: () => void;
-  employeeId?: string; // Add employee ID prop
+  employeeId?: string;
 };
 
-export default function PauseDialog({ onPause, onCancel, employeeId = "" }: PauseDialogProps) {
+export default function PauseDialog({ 
+  onPause, 
+  onCancel, 
+  employeeId = "" 
+}: PauseDialogProps) {
   const { state, dispatch } = useTerminal();
   const [reason, setReason] = useState<string>("");
   const [completedQty, setCompletedQty] = useState<string>("");
@@ -34,26 +39,25 @@ export default function PauseDialog({ onPause, onCancel, employeeId = "" }: Paus
       return;
     }
 
-    // If we have an active running log, update it and create a paused log
-    if (
-      state.activeLogId &&
-      state.activeLogState === "RUNNING" &&
-      state.currentJob
-    ) {
-      setIsLogging(true);
+    setIsLogging(true);
+    setError("");
 
-      try {
+    try {
+      // If we have an active running log, update it and create a paused log
+      if (
+        state.activeLogId &&
+        state.activeLogState === "RUNNING" &&
+        state.currentJob
+      ) {
         // Use the employeeId prop instead of the user name
         const operatorId = employeeId || "unknown";
         
-        console.log("Pausing job with operator ID:", operatorId);
-
         const logResult = await pauseJob(
           state.activeLogId,
           qty,
           state.currentJob,
           state.terminal,
-          operatorId, // Use operator ID here
+          operatorId,
           reason
         );
 
@@ -70,20 +74,30 @@ export default function PauseDialog({ onPause, onCancel, employeeId = "" }: Paus
             terminalActions.setActiveLog(logResult.paused_log_id, "PAUSED")
           );
         }
-      } catch (error) {
-        console.error("Error logging pause:", error);
-        setError("An error occurred. Please try again.");
-        setIsLogging(false);
-        return;
+
+        // Update the job in the database if quantity > 0
+        if (qty > 0 && state.currentJob) {
+          const jobResult = await updateJobCompletion(state.currentJob, qty);
+
+          if (!jobResult.success) {
+            console.error("Failed to update job:", jobResult.error);
+            // Don't block the pause flow for job update failures
+            console.warn("Job update failed, but pause was successful");
+          } else {
+            console.log("Job updated successfully:", jobResult.updatedJob);
+          }
+        }
+      } else {
+        console.warn("No active running log found for pause");
       }
 
+      // Call the onPause callback with the reason
+      onPause(reason);
+    } catch (error) {
+      console.error("Error logging pause:", error);
+      setError("An error occurred. Please try again.");
       setIsLogging(false);
-    } else {
-      console.warn("No active running log found for pause");
     }
-
-    // Call the onPause callback with the reason
-    onPause(reason);
   };
 
   // Handle Enter key press
