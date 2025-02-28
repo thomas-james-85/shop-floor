@@ -7,10 +7,10 @@ import ScanJobDialog from "@/components/ScanJobDialog";
 import JobDetailsCard from "@/components/JobDetailsCard";
 import ScanUserDialog from "@/components/ScanUserDialog";
 import StateControlButtons from "@/components/StateControlButtons";
-import { useTerminal } from "@/contexts/terminalContext";
+import { useTerminal, terminalActions } from "@/contexts/terminalContext";
 
 export default function HomePage() {
-  const { state } = useTerminal();
+  const { state, dispatch } = useTerminal();
   const [showUserDialog, setShowUserDialog] = useState(false);
   const [userDialogRole, setUserDialogRole] = useState<
     "can_operate" | "can_setup" | "can_inspect" | "can_remanufacture"
@@ -65,6 +65,13 @@ export default function HomePage() {
             <ScanUserDialog
               roleRequired={userDialogRole}
               onCancel={handleUserDialogCancel}
+              onAuthenticated={(name) => {
+                // Update terminal with authenticated user
+                dispatch(terminalActions.setLoggedInUser(name));
+
+                // Close the dialog
+                setShowUserDialog(false);
+              }}
             />
           )}
         </>
