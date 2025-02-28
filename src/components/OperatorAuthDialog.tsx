@@ -1,7 +1,7 @@
 // src/components/OperatorAuthDialog.tsx
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -25,8 +25,8 @@ export default function OperatorAuthDialog({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  // Function to fetch the latest job data
-  const fetchLatestJobData = async () => {
+  // Function to fetch the latest job data wrapped in useCallback
+  const fetchLatestJobData = useCallback(async () => {
     if (!state.currentJob || !state.terminal.operationCode) return;
 
     try {
@@ -53,7 +53,7 @@ export default function OperatorAuthDialog({
     } catch (error) {
       console.error("Error refreshing job data:", error);
     }
-  };
+  }, [state.currentJob, state.terminal.operationCode, dispatch]);
 
   useEffect(() => {
     // When resuming a job, fetch the latest job data

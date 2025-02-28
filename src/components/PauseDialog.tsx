@@ -77,7 +77,7 @@ export default function PauseDialog({
         }
 
         // Update the job in the database if quantity > 0
-        let updatedJobData: Partial<JobData> | null = null;
+        let updatedJobData: Partial<JobData> | undefined = undefined;
         if (qty > 0 && state.currentJob) {
           const jobResult = await updateJobCompletion(state.currentJob, qty);
 
