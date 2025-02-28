@@ -1,6 +1,9 @@
 // src/utils/efficiencyLogger.ts - Updated to include time_saved field
 import { JobData } from "@/types";
-import { EfficiencyMetrics, calculateJobEfficiency } from "./efficiencyCalculator";
+import {
+  EfficiencyMetrics,
+  calculateJobEfficiency,
+} from "./efficiencyCalculator";
 
 interface LogEfficiencyParams {
   jobLogId: number;
@@ -12,6 +15,13 @@ interface LogEfficiencyParams {
   quantity?: number; // Required for RUNNING logs
   operatorId?: string; // Added for compatibility with efficiency_metrics
   machineId?: string; // Added for compatibility with efficiency_metrics
+}
+
+interface ApiResponse {
+  success: boolean;
+  error?: string;
+  efficiencyLog?: Record<string, unknown>;
+  metrics?: Array<Record<string, unknown>>;
 }
 
 /**
@@ -47,14 +57,15 @@ export const logEfficiency = async (
         actual_time: metrics.actual,
         efficiency_percentage: metrics.efficiency, // Changed from efficiency to efficiency_percentage
         time_saved: metrics.timeSaved, // Added time_saved field
-        planned_qty: params.logType === "RUNNING" ? params.jobData.quantity : null,
+        planned_qty:
+          params.logType === "RUNNING" ? params.jobData.quantity : null,
         completed_qty: metrics.quantity,
         operator_id: params.operatorId || null,
-        machine_id: params.machineId || null
+        machine_id: params.machineId || null,
       }),
     });
 
-    const data = await response.json();
+    const data = (await response.json()) as ApiResponse;
 
     if (!response.ok) {
       console.error("Failed to log efficiency:", data.error);
@@ -81,12 +92,12 @@ export const getEfficiencyForJobLog = async (
   jobLogId: number
 ): Promise<{
   success: boolean;
-  efficiencyLog?: any;
+  efficiencyLog?: Record<string, unknown>;
   error?: string;
 }> => {
   try {
     const response = await fetch(`/api/logs/efficiency?job_log_id=${jobLogId}`);
-    const data = await response.json();
+    const data = (await response.json()) as ApiResponse;
 
     if (!response.ok) {
       return { success: false, error: data.error };
@@ -95,7 +106,8 @@ export const getEfficiencyForJobLog = async (
     // Return the first log if available
     return {
       success: true,
-      efficiencyLog: data.metrics && data.metrics.length > 0 ? data.metrics[0] : null,
+      efficiencyLog:
+        data.metrics && data.metrics.length > 0 ? data.metrics[0] : undefined,
     };
   } catch (error) {
     console.error("Error fetching efficiency log:", error);

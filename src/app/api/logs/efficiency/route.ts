@@ -1,4 +1,3 @@
-// src/app/api/logs/efficiency/route.ts - Fixed TypeScript errors
 import { NextResponse } from "next/server";
 import db from "@/lib/db";
 
@@ -15,11 +14,18 @@ export async function POST(req: Request) {
       planned_qty,
       completed_qty,
       operator_id,
-      machine_id
+      machine_id,
     } = await req.json();
 
     // Validation
-    if (!job_log_id || !lookup_code || !metric_type || planned_time === undefined || actual_time === undefined || efficiency_percentage === undefined) {
+    if (
+      !job_log_id ||
+      !lookup_code ||
+      !metric_type ||
+      planned_time === undefined ||
+      actual_time === undefined ||
+      efficiency_percentage === undefined
+    ) {
       return NextResponse.json(
         { error: "Missing required fields" },
         { status: 400 }
@@ -43,7 +49,7 @@ export async function POST(req: Request) {
         AND table_name = 'efficiency_metrics' 
         AND column_name = 'time_saved'
       `);
-      
+
       // If time_saved column doesn't exist, add it to the table
       if (columnCheckResult.rowCount === 0) {
         console.log("time_saved column doesn't exist, adding it...");
@@ -79,7 +85,7 @@ export async function POST(req: Request) {
           planned_qty || null,
           completed_qty || null,
           operator_id || null,
-          machine_id || null
+          machine_id || null,
         ]
       );
 
@@ -88,10 +94,18 @@ export async function POST(req: Request) {
         message: "Efficiency metric created successfully",
         metric_id: result.rows[0].metric_id,
       });
-    } catch (insertError: any) {
-      // Type assertion to 'any' to fix TypeScript error
-      // If the error is about the time_saved column not existing, try again without it
-      if (insertError?.message && insertError.message.includes('column "time_saved" of relation "efficiency_metrics" does not exist')) {
+    } catch (insertError: unknown) {
+      // Check if error is about the time_saved column not existing
+      const errorMessage =
+        insertError instanceof Error
+          ? insertError.message
+          : String(insertError);
+
+      if (
+        errorMessage.includes(
+          'column "time_saved" of relation "efficiency_metrics" does not exist'
+        )
+      ) {
         try {
           const resultWithoutTimeSaved = await db.query(
             `INSERT INTO efficiency_metrics 
@@ -109,36 +123,44 @@ export async function POST(req: Request) {
               planned_qty || null,
               completed_qty || null,
               operator_id || null,
-              machine_id || null
+              machine_id || null,
             ]
           );
-          
+
           return NextResponse.json({
             success: true,
-            message: "Efficiency metric created successfully (without time_saved)",
+            message:
+              "Efficiency metric created successfully (without time_saved)",
             metric_id: resultWithoutTimeSaved.rows[0].metric_id,
           });
-        } catch (fallbackError: any) {
-          // Type assertion to 'any' to fix TypeScript error
+        } catch (fallbackError: unknown) {
+          const fallbackErrorMessage =
+            fallbackError instanceof Error
+              ? fallbackError.message
+              : "unknown error";
+
           console.error("Fallback insert error:", fallbackError);
           return NextResponse.json(
-            { error: `Fallback insert error: ${fallbackError?.message || "unknown error"}` },
+            { error: `Fallback insert error: ${fallbackErrorMessage}` },
             { status: 500 }
           );
         }
       }
-      
+
       console.error("Efficiency Metric Insert Error:", insertError);
+      const errorMsg =
+        insertError instanceof Error ? insertError.message : "unknown error";
       return NextResponse.json(
-        { error: `Insert error: ${insertError?.message || "unknown error"}` },
+        { error: `Insert error: ${errorMsg}` },
         { status: 500 }
       );
     }
-  } catch (error: any) {
-    // Type assertion to 'any' to fix TypeScript error
+  } catch (error: unknown) {
     console.error("Efficiency Metric Creation Error:", error);
+    const errorMsg =
+      error instanceof Error ? error.message : "Internal server error";
     return NextResponse.json(
-      { error: `General error: ${error?.message || "Internal server error"}` },
+      { error: `General error: ${errorMsg}` },
       { status: 500 }
     );
   }
@@ -173,7 +195,8 @@ export async function GET(req: Request) {
     }
 
     // Construct WHERE clause if conditions exist
-    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+    const whereClause =
+      conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
 
     // Execute query
     const query = `
@@ -190,11 +213,12 @@ export async function GET(req: Request) {
       success: true,
       metrics: result.rows,
     });
-  } catch (error: any) {
-    // Type assertion to 'any' to fix TypeScript error
+  } catch (error: unknown) {
     console.error("Efficiency Metric Retrieval Error:", error);
+    const errorMsg =
+      error instanceof Error ? error.message : "Internal server error";
     return NextResponse.json(
-      { error: `Retrieval error: ${error?.message || "Internal server error"}` },
+      { error: `Retrieval error: ${errorMsg}` },
       { status: 500 }
     );
   }

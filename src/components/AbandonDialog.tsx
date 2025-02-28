@@ -5,7 +5,7 @@ import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { useTerminal, terminalActions } from "@/contexts/terminalContext";
+import { useTerminal } from "@/contexts/terminalContext"; // Removed unused terminalActions
 import { EfficiencyMetrics } from "@/utils/efficiencyCalculator";
 import { getJobLogById } from "@/utils/jobLogs";
 import { logEfficiency } from "@/utils/efficiencyLogger";
