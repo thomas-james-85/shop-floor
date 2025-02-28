@@ -39,7 +39,7 @@ export default function StateControlButtons() {
 
     try {
       const updatedJob = await refreshJobData(state.currentJob, state.terminal);
-      
+
       if (updatedJob) {
         // Update current job with the latest data from server
         dispatch(terminalActions.setCurrentJob(updatedJob));
@@ -124,7 +124,7 @@ export default function StateControlButtons() {
 
     // Reset resume flag
     setIsResuming(false);
-    
+
     // Fetch latest job data to ensure we have up-to-date values
     fetchLatestJobData();
   };
@@ -132,15 +132,6 @@ export default function StateControlButtons() {
   // Handle job completion
   const handleJobComplete = async (completedQty: number) => {
     console.log(`Job completed with quantity: ${completedQty}`);
-
-    try {
-      // Update the job in the database if quantity > 0
-      if (completedQty > 0 && state.currentJob) {
-        await updateJobCompletion(state.currentJob, completedQty);
-      }
-    } catch (error) {
-      console.error("Error updating job completion:", error);
-    }
 
     // Clear user
     dispatch(terminalActions.setLoggedInUser(null));
