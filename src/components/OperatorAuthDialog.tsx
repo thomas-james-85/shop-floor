@@ -30,13 +30,19 @@ export default function OperatorAuthDialog({
     if (!state.currentJob || !state.terminal.operationCode) return;
 
     try {
-      const lookup_code = `${state.currentJob.route_card}-${state.currentJob.contract_number}-${state.currentJob.op_code}`;
+      // Use route_card and contract_number for more reliable job lookup
+      const scan = `${state.currentJob.route_card}-${state.currentJob.contract_number}`;
+
+      console.log("Attempting to refresh job data with:", {
+        scan,
+        operation_code: state.terminal.operationCode,
+      });
 
       const response = await fetch("/api/jobs/lookup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          scan: lookup_code,
+          scan,
           operation_code: state.terminal.operationCode,
         }),
       });
@@ -46,12 +52,25 @@ export default function OperatorAuthDialog({
       if (response.ok && !("error" in data)) {
         // Update current job with the latest data from server
         dispatch(terminalActions.setCurrentJob(data));
-        console.log("Updated job data:", data);
+        console.log("Successfully updated job data:", data);
+        return data;
       } else {
         console.error("Failed to refresh job data:", data.error);
+
+        // Log additional context about the current job
+        console.warn("Current job details:", state.currentJob);
+
+        // If we fail to fetch, just return the existing job data to prevent breaking the flow
+        return state.currentJob;
       }
     } catch (error) {
       console.error("Error refreshing job data:", error);
+
+      // Log additional context about the current job
+      console.warn("Current job details:", state.currentJob);
+
+      // Return existing job data to prevent breaking the flow
+      return state.currentJob;
     }
   }, [state.currentJob, state.terminal.operationCode, dispatch]);
 
@@ -81,7 +100,12 @@ export default function OperatorAuthDialog({
       }
 
       // Refresh job data before proceeding, especially important for resume
-      await fetchLatestJobData();
+      const latestJobData = await fetchLatestJobData();
+
+      // If fetchLatestJobData returns undefined or null, use existing job data
+      if (!latestJobData) {
+        console.warn("No updated job data found, using existing job data");
+      }
 
       // Create appropriate log entry based on context
       if (state.currentJob) {
