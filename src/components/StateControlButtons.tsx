@@ -8,7 +8,7 @@ import CompletionDialog from "@/components/CompletionDialog";
 import PauseDialog from "./PauseDialog";
 import AbandonDialog from "./AbandonDialog";
 import { updateJobCompletion } from "@/utils/jobUpdates";
-import { completeRunningLog, abandonJob } from "@/utils/jobLogs";
+import { abandonJob } from "@/utils/jobLogs";
 import { refreshJobData } from "@/utils/refreshJob";
 
 export default function StateControlButtons() {

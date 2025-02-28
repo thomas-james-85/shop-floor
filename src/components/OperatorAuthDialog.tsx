@@ -60,7 +60,7 @@ export default function OperatorAuthDialog({
     if (isResume) {
       fetchLatestJobData();
     }
-  }, [isResume]);
+  }, [isResume, fetchLatestJobData]);
 
   const handleOperatorScan = async () => {
     if (!employeeId.trim()) {

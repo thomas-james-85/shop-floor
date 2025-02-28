@@ -8,9 +8,10 @@ import { Button } from "@/components/ui/button";
 import { useTerminal, terminalActions } from "@/contexts/terminalContext";
 import { pauseJob } from "@/utils/jobLogs";
 import { updateJobCompletion } from "@/utils/jobUpdates";
+import { JobData } from "@/types";
 
 type PauseDialogProps = {
-  onPause: (reason: string, updatedJob?: any) => void;
+  onPause: (reason: string, updatedJob?: Partial<JobData>) => void;
   onCancel: () => void;
   employeeId?: string;
 };
@@ -76,7 +77,7 @@ export default function PauseDialog({
         }
 
         // Update the job in the database if quantity > 0
-        let updatedJobData = null;
+        let updatedJobData: Partial<JobData> | null = null;
         if (qty > 0 && state.currentJob) {
           const jobResult = await updateJobCompletion(state.currentJob, qty);
 
