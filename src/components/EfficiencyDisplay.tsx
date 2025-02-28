@@ -1,7 +1,7 @@
 // src/components/EfficiencyDisplay.tsx
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { EfficiencyMetrics } from "@/utils/efficiencyCalculator";
 
@@ -16,22 +16,6 @@ export default function EfficiencyDisplay({
   process,
   onClose,
 }: EfficiencyDisplayProps) {
-  const [countdown, setCountdown] = useState(5); // Start with 5 seconds
-
-  useEffect(() => {
-    // Only countdown if greater than 0
-    if (countdown > 0) {
-      const timer = setTimeout(() => {
-        setCountdown(countdown - 1);
-      }, 1000);
-
-      return () => clearTimeout(timer);
-    } else {
-      // Auto-close when countdown reaches 0
-      onClose();
-    }
-  }, [countdown, onClose]);
-
   // Function to determine color based on efficiency
   const getEfficiencyColor = (efficiency: number) => {
     if (efficiency >= 110) return "text-green-600";
@@ -136,7 +120,7 @@ export default function EfficiencyDisplay({
                 onClick={onClose}
                 className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
               >
-                Continue ({countdown > 0 ? countdown : 0}s)
+                Continue
               </button>
             </div>
           </div>

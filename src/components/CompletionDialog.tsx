@@ -26,7 +26,8 @@ export default function CompletionDialog({
   const [error, setError] = useState<string>("");
   const [isLogging, setIsLogging] = useState<boolean>(false);
   const [showEfficiency, setShowEfficiency] = useState<boolean>(false);
-  const [efficiencyMetrics, setEfficiencyMetrics] = useState<EfficiencyMetrics | null>(null);
+  const [efficiencyMetrics, setEfficiencyMetrics] =
+    useState<EfficiencyMetrics | null>(null);
 
   const handleComplete = async () => {
     // Validate input
@@ -47,18 +48,24 @@ export default function CompletionDialog({
 
     try {
       // If we have an active running log, update it
-      if (state.activeLogId && state.activeLogState === "RUNNING" && state.currentJob) {
+      if (
+        state.activeLogId &&
+        state.activeLogState === "RUNNING" &&
+        state.currentJob
+      ) {
         // Get the job log first to get its start time
-        const jobLogResponse = await fetch(`/api/logs/jobs?log_id=${state.activeLogId}`);
+        const jobLogResponse = await fetch(
+          `/api/logs/jobs?log_id=${state.activeLogId}`
+        );
         const jobLogData = await jobLogResponse.json();
-        
+
         if (!jobLogResponse.ok || !jobLogData.success) {
           console.error("Failed to fetch job log data:", jobLogData.error);
           setError("Failed to fetch log data. Please try again.");
           setIsLogging(false);
           return;
         }
-        
+
         const jobLog = jobLogData.log;
         if (!jobLog) {
           console.error("No job log found");
@@ -87,7 +94,7 @@ export default function CompletionDialog({
           startTime: jobLog.start_time,
           endTime: endTime.toISOString(),
           jobData: state.currentJob,
-          quantity: qty
+          quantity: qty,
         });
 
         if (efficiencyResult.success && efficiencyResult.efficiencyMetrics) {
@@ -117,7 +124,7 @@ export default function CompletionDialog({
         console.log("Job updated successfully:", jobResult.updatedJob);
       }
 
-      // If we're showing efficiency metrics, the onComplete callback will be called 
+      // If we're showing efficiency metrics, the onComplete callback will be called
       // after the user views the metrics
       if (!showEfficiency) {
         onComplete(qty);
@@ -134,11 +141,20 @@ export default function CompletionDialog({
   };
 
   const handleEfficiencyClose = () => {
-    setShowEfficiency(false);
-    setIsLogging(false);
-    
-    // Now complete the process
-    onComplete(parseInt(completedQty));
+    // Force the efficiency display to remain visible for 5 seconds
+    console.log("Efficiency display close requested, waiting 5 seconds...");
+
+    // Disable the button to prevent multiple clicks
+    setIsLogging(true);
+
+    setTimeout(() => {
+      console.log("5 seconds elapsed, now closing efficiency display");
+      setShowEfficiency(false);
+      setIsLogging(false);
+
+      // Now complete the process
+      onComplete(parseInt(completedQty));
+    }, 5000); // 5 seconds
   };
 
   // Handle Enter key press
@@ -215,10 +231,10 @@ export default function CompletionDialog({
 
       {/* Efficiency Display */}
       {showEfficiency && efficiencyMetrics && (
-        <EfficiencyDisplay 
-          metrics={efficiencyMetrics} 
-          process="Running" 
-          onClose={handleEfficiencyClose} 
+        <EfficiencyDisplay
+          metrics={efficiencyMetrics}
+          process="Running"
+          onClose={handleEfficiencyClose}
         />
       )}
     </>
