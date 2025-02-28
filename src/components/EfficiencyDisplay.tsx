@@ -1,7 +1,7 @@
 // src/components/EfficiencyDisplay.tsx
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { EfficiencyMetrics } from "@/utils/efficiencyCalculator";
 
@@ -16,6 +16,22 @@ export default function EfficiencyDisplay({
   process,
   onClose,
 }: EfficiencyDisplayProps) {
+  const [countdown, setCountdown] = useState(5); // Start with 5 seconds
+
+  useEffect(() => {
+    // Only countdown if greater than 0
+    if (countdown > 0) {
+      const timer = setTimeout(() => {
+        setCountdown(countdown - 1);
+      }, 1000);
+
+      return () => clearTimeout(timer);
+    } else {
+      // Auto-close when countdown reaches 0
+      onClose();
+    }
+  }, [countdown, onClose]);
+
   // Function to determine color based on efficiency
   const getEfficiencyColor = (efficiency: number) => {
     if (efficiency >= 110) return "text-green-600";
@@ -33,7 +49,7 @@ export default function EfficiencyDisplay({
   };
 
   // Calculate the percentage for the gauge (capped at 150% for display purposes)
-  const gaugePercentage = Math.min(metrics.efficiency, 150) / 150 * 100;
+  const gaugePercentage = (Math.min(metrics.efficiency, 150) / 150) * 100;
 
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-gray-900 bg-opacity-50 z-50">
@@ -42,16 +58,23 @@ export default function EfficiencyDisplay({
           <div className="bg-white rounded-lg">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-xl font-bold">{process} Complete!</h3>
-              <div className={`text-2xl font-bold ${getEfficiencyColor(metrics.efficiency)}`}>
+              <div
+                className={`text-2xl font-bold ${getEfficiencyColor(
+                  metrics.efficiency
+                )}`}
+              >
                 {metrics.efficiency}% Efficient
               </div>
             </div>
-            
+
             <div className="mb-6">
               <div className="h-4 w-full bg-gray-200 rounded-full overflow-hidden">
-                <div 
+                <div
                   className={`h-full ${getGaugeColor(metrics.efficiency)}`}
-                  style={{ width: `${gaugePercentage}%`, transition: "width 1s ease-out" }}
+                  style={{
+                    width: `${gaugePercentage}%`,
+                    transition: "width 1s ease-out",
+                  }}
                 ></div>
               </div>
               <div className="flex justify-between text-xs mt-1">
@@ -61,43 +84,59 @@ export default function EfficiencyDisplay({
                 <span>150%</span>
               </div>
             </div>
-            
+
             <div className="grid grid-cols-3 gap-4">
               <div className="bg-gray-100 p-3 rounded-lg text-center">
                 <div className="text-sm text-gray-500">Planned</div>
-                <div className="text-lg font-semibold">{metrics.planned} min</div>
+                <div className="text-lg font-semibold">
+                  {metrics.planned} min
+                </div>
               </div>
               <div className="bg-gray-100 p-3 rounded-lg text-center">
                 <div className="text-sm text-gray-500">Actual</div>
-                <div className="text-lg font-semibold">{metrics.actual} min</div>
+                <div className="text-lg font-semibold">
+                  {metrics.actual} min
+                </div>
               </div>
               <div className="bg-gray-100 p-3 rounded-lg text-center">
                 <div className="text-sm text-gray-500">Time Saved</div>
-                <div className={`text-lg font-semibold ${metrics.timeSaved >= 0 ? "text-green-600" : "text-red-600"}`}>
-                  {metrics.timeSaved >= 0 ? "+" : ""}{metrics.timeSaved} min
+                <div
+                  className={`text-lg font-semibold ${
+                    metrics.timeSaved >= 0 ? "text-green-600" : "text-red-600"
+                  }`}
+                >
+                  {metrics.timeSaved >= 0 ? "+" : ""}
+                  {metrics.timeSaved} min
                 </div>
               </div>
             </div>
-            
-            {metrics.quantity !== undefined && metrics.plannedPerItem !== undefined && (
-              <div className="mt-4 flex justify-between bg-gray-50 p-3 rounded-lg">
-                <div>
-                  <span className="text-sm text-gray-500">Quantity: </span>
-                  <span className="font-medium">{metrics.quantity} units</span>
+
+            {metrics.quantity !== undefined &&
+              metrics.plannedPerItem !== undefined && (
+                <div className="mt-4 flex justify-between bg-gray-50 p-3 rounded-lg">
+                  <div>
+                    <span className="text-sm text-gray-500">Quantity: </span>
+                    <span className="font-medium">
+                      {metrics.quantity} units
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-sm text-gray-500">
+                      Plan per unit:{" "}
+                    </span>
+                    <span className="font-medium">
+                      {metrics.plannedPerItem} min
+                    </span>
+                  </div>
                 </div>
-                <div>
-                  <span className="text-sm text-gray-500">Plan per unit: </span>
-                  <span className="font-medium">{metrics.plannedPerItem} min</span>
-                </div>
-              </div>
-            )}
+              )}
 
             <div className="mt-6 flex justify-center">
-              <button 
+              <button
                 onClick={onClose}
                 className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
               >
-                Continue
+                Continue ({countdown > 0 ? countdown : 0}s)
               </button>
             </div>
           </div>
