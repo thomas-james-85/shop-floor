@@ -15,11 +15,13 @@ type ScanUserDialogProps = {
     | "can_setup"
     | "can_inspect"
     | "can_remanufacture";
+  onAuthenticated: (name: string) => void; // Add this prop
   onCancel: () => void;
 };
 
 export default function ScanUserDialog({
   roleRequired,
+  onAuthenticated,
   onCancel,
 }: ScanUserDialogProps) {
   const { state, dispatch } = useTerminal();
@@ -98,6 +100,9 @@ export default function ScanUserDialog({
         // Update terminal state
         dispatch(terminalActions.setTerminalState("RUNNING"));
       }
+
+      // Call the onAuthenticated callback with the user's name
+      onAuthenticated(result.name || "");
 
       // Clear form
       setEmployeeId("");
