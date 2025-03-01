@@ -3,11 +3,11 @@ import db from "@/lib/db";
 
 export async function GET() {
   try {
-    console.log("Testing Supabase database connection...");
+    console.log("Testing Neon database connection...");
     console.log("Environment details:", {
-      hasSupabaseConnString: Boolean(process.env.SUPABASE_CONNECTION_STRING),
-      hasSupabaseHost: Boolean(process.env.SUPABASE_HOST),
-      hasSupabasePassword: Boolean(process.env.SUPABASE_PASSWORD),
+      hasNeonConnString: Boolean(process.env.NEON_CONNECTION_STRING),
+      hasNeonHost: Boolean(process.env.NEON_HOST),
+      hasNeonPassword: Boolean(process.env.NEON_PASSWORD),
     });
 
     // Try a simple query
@@ -38,9 +38,9 @@ export async function GET() {
         tables: tablesResult.rows.map(row => row.table_name)
       },
       connectionInfo: {
-        usingSupabase: Boolean(process.env.SUPABASE_CONNECTION_STRING || process.env.SUPABASE_HOST),
-        host: process.env.SUPABASE_HOST || "(Using CONNECTION_STRING)",
-        databaseName: process.env.SUPABASE_DATABASE || "postgres",
+        usingNeon: Boolean(process.env.NEON_CONNECTION_STRING || process.env.NEON_HOST),
+        host: process.env.NEON_HOST || "(Using CONNECTION_STRING)",
+        databaseName: process.env.NEON_DATABASE || "neondb",
       },
     });
   } catch (error) {
@@ -53,12 +53,12 @@ export async function GET() {
         error: error instanceof Error ? error.message : String(error),
         stack: error instanceof Error ? error.stack : undefined,
         connectionInfo: {
-          usingSupabase: Boolean(process.env.SUPABASE_CONNECTION_STRING || process.env.SUPABASE_HOST),
-          host: process.env.SUPABASE_HOST || "(Using CONNECTION_STRING)",
-          databaseName: process.env.SUPABASE_DATABASE || "postgres",
+          usingNeon: Boolean(process.env.NEON_CONNECTION_STRING || process.env.NEON_HOST),
+          host: process.env.NEON_HOST || "(Using CONNECTION_STRING)",
+          databaseName: process.env.NEON_DATABASE || "neondb",
         },
       },
       { status: 500 }
     );
   }
-}  
+}

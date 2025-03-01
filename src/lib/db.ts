@@ -4,26 +4,26 @@ import { Pool, PoolConfig } from "pg";
 let pool: Pool;
 
 async function createPool() {
-  // Check if Supabase connection details are provided
-  const useSupabase = process.env.SUPABASE_CONNECTION_STRING || 
-    (process.env.SUPABASE_HOST && process.env.SUPABASE_PASSWORD);
+  // Check if Neon connection details are provided
+  const useNeon = process.env.NEON_CONNECTION_STRING || 
+    (process.env.NEON_HOST && process.env.NEON_PASSWORD);
 
   console.log(
     "Database connection mode:",
-    useSupabase ? "Supabase" : "Standard PostgreSQL"
+    useNeon ? "Neon" : "Standard PostgreSQL"
   );
 
-  if (useSupabase) {
-    // Enhanced logging for Supabase configuration
-    console.log("Configuring Supabase connection");
+  if (useNeon) {
+    // Enhanced logging for Neon configuration
+    console.log("Configuring Neon connection");
 
     try {
       // If full connection string is provided
-      if (process.env.SUPABASE_CONNECTION_STRING) {
-        console.log("Using Supabase connection string");
+      if (process.env.NEON_CONNECTION_STRING) {
+        console.log("Using Neon connection string");
         
         return new Pool({
-          connectionString: process.env.SUPABASE_CONNECTION_STRING,
+          connectionString: process.env.NEON_CONNECTION_STRING,
           ssl: { rejectUnauthorized: false },
           connectionTimeoutMillis: 10000,
           max: 5,
@@ -32,19 +32,19 @@ async function createPool() {
       }
       
       // Otherwise use individual connection parameters
-      const host = process.env.SUPABASE_HOST;
-      const port = parseInt(process.env.SUPABASE_PORT || "5432");
-      const database = process.env.SUPABASE_DATABASE || "postgres";
-      const user = process.env.SUPABASE_USER || "postgres";
-      const password = process.env.SUPABASE_PASSWORD;
+      const host = process.env.NEON_HOST;
+      const port = parseInt(process.env.NEON_PORT || "5432");
+      const database = process.env.NEON_DATABASE || "neondb";
+      const user = process.env.NEON_USER;
+      const password = process.env.NEON_PASSWORD;
 
-      if (!host || !password) {
+      if (!host || !password || !user) {
         throw new Error(
-          "Missing required environment variables for Supabase connection"
+          "Missing required environment variables for Neon connection"
         );
       }
 
-      // Configure pool with direct Supabase parameters
+      // Configure pool with direct Neon parameters
       const config: PoolConfig = {
         host,
         port,
@@ -57,10 +57,10 @@ async function createPool() {
         idleTimeoutMillis: 30000,
       };
 
-      console.log("Creating database pool with Supabase config");
+      console.log("Creating database pool with Neon config");
       return new Pool(config);
     } catch (error) {
-      console.error("Error in Supabase connection setup:", error);
+      console.error("Error in Neon connection setup:", error);
       throw error;
     }
   } else {
