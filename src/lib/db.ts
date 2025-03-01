@@ -1,98 +1,70 @@
 // src/lib/db.ts
 import { Pool, PoolConfig } from "pg";
-import { Signer } from "@aws-sdk/rds-signer";
-import { awsCredentialsProvider } from "@vercel/functions/oidc";
 
 let pool: Pool;
 
 async function createPool() {
-  // Check if running on Vercel with IAM auth config
-  const useIamAuth =
-    process.env.VERCEL === "1" &&
-    process.env.AWS_ROLE_ARN &&
-    process.env.RDS_HOSTNAME &&
-    process.env.RDS_USERNAME;
+  // Check if Supabase connection details are provided
+  const useSupabase = process.env.SUPABASE_CONNECTION_STRING || 
+    (process.env.SUPABASE_HOST && process.env.SUPABASE_PASSWORD);
 
   console.log(
     "Database connection mode:",
-    useIamAuth ? "IAM Authentication" : "Standard"
+    useSupabase ? "Supabase" : "Standard PostgreSQL"
   );
 
-  if (useIamAuth) {
-    // Enhanced logging for IAM configuration
-    console.log("Configuring RDS IAM authentication connection");
-    console.log("Environment check:", {
-      roleArn: Boolean(process.env.AWS_ROLE_ARN),
-      region: process.env.AWS_REGION || "us-east-1",
-      hostname: Boolean(process.env.RDS_HOSTNAME),
-      username: Boolean(process.env.RDS_USERNAME),
-      database: Boolean(process.env.RDS_DATABASE),
-      port: process.env.RDS_PORT || "5432",
-    });
+  if (useSupabase) {
+    // Enhanced logging for Supabase configuration
+    console.log("Configuring Supabase connection");
 
     try {
-      // Ensure required values exist
-      const roleArn = process.env.AWS_ROLE_ARN;
-      const region = process.env.AWS_REGION || "us-east-1";
-      const hostname = process.env.RDS_HOSTNAME;
-      const username = process.env.RDS_USERNAME;
-      const database = process.env.RDS_DATABASE;
-      const port = parseInt(process.env.RDS_PORT || "5432");
+      // If full connection string is provided
+      if (process.env.SUPABASE_CONNECTION_STRING) {
+        console.log("Using Supabase connection string");
+        
+        return new Pool({
+          connectionString: process.env.SUPABASE_CONNECTION_STRING,
+          ssl: { rejectUnauthorized: false },
+          connectionTimeoutMillis: 10000,
+          max: 5,
+          idleTimeoutMillis: 30000,
+        });
+      }
+      
+      // Otherwise use individual connection parameters
+      const host = process.env.SUPABASE_HOST;
+      const port = parseInt(process.env.SUPABASE_PORT || "5432");
+      const database = process.env.SUPABASE_DATABASE || "postgres";
+      const user = process.env.SUPABASE_USER || "postgres";
+      const password = process.env.SUPABASE_PASSWORD;
 
-      if (!roleArn || !hostname || !username || !database) {
+      if (!host || !password) {
         throw new Error(
-          "Missing required environment variables for IAM authentication"
+          "Missing required environment variables for Supabase connection"
         );
       }
 
-      console.log("Creating credential provider with role:", roleArn);
-      const credentials = awsCredentialsProvider({
-        roleArn,
-      });
-
-      // Create token generator function
-      const getToken = async () => {
-        try {
-          console.log("Requesting IAM auth token...");
-          const signer = new Signer({
-            credentials,
-            region,
-            hostname,
-            port,
-            username,
-          });
-          
-          const token = await signer.getAuthToken();
-          console.log("Successfully obtained IAM auth token");
-          return token;
-        } catch (error) {
-          console.error("Error obtaining IAM auth token:", error);
-          throw error;
-        }
-      };
-
-      // Configure pool with IAM authentication
+      // Configure pool with direct Supabase parameters
       const config: PoolConfig = {
-        host: hostname,
+        host,
         port,
         database,
-        user: username,
+        user,
+        password,
         ssl: { rejectUnauthorized: false },
-        password: getToken,
-        // Add connection timeout and retry options
         connectionTimeoutMillis: 10000,
-        max: 5, // Maximum number of clients in the pool
-        idleTimeoutMillis: 30000, // How long a client is allowed to remain idle
+        max: 5,
+        idleTimeoutMillis: 30000,
       };
 
-      console.log("Creating database pool with IAM auth config");
+      console.log("Creating database pool with Supabase config");
       return new Pool(config);
     } catch (error) {
-      console.error("Error in IAM auth setup:", error);
+      console.error("Error in Supabase connection setup:", error);
       throw error;
     }
   } else {
-    // Standard connection with DATABASE_URL
+    // Fallback to standard connection with DATABASE_URL
     console.log("Using standard connection string");
 
     const connectionString = process.env.DATABASE_URL;
@@ -104,7 +76,6 @@ async function createPool() {
     return new Pool({
       connectionString,
       ssl: { rejectUnauthorized: false },
-      // Add connection timeout and retry options
       connectionTimeoutMillis: 10000,
       max: 5,
       idleTimeoutMillis: 30000,
@@ -137,12 +108,12 @@ const db = {
       console.error("Query:", text);
       console.error("Parameters:", params);
       
-      // Check if it's a connection error that might be related to IAM token
+      // Check if it's a connection error and retry once
       if (error instanceof Error && 
           (error.message.includes('authentication') || 
            error.message.includes('connect ETIMEDOUT') ||
            error.message.includes('connection'))) {
-        console.log("Possible IAM authentication issue, recreating pool");
+        console.log("Connection issue detected, recreating pool");
         pool.end(); // End the current pool
         pool = await createPool(); // Create a new pool
         
