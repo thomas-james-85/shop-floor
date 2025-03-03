@@ -27,10 +27,11 @@ export default function AbandonDialog({
   const [reason, setReason] = useState<string>("");
   const [error, setError] = useState<string>("");
   const [isLogging, setIsLogging] = useState<boolean>(false);
-  
+
   // For efficiency tracking
   const [showEfficiency, setShowEfficiency] = useState<boolean>(false);
-  const [efficiencyMetrics, setEfficiencyMetrics] = useState<EfficiencyMetrics | null>(null);
+  const [efficiencyMetrics, setEfficiencyMetrics] =
+    useState<EfficiencyMetrics | null>(null);
 
   const handleAbandon = async () => {
     // Validate input
@@ -52,26 +53,29 @@ export default function AbandonDialog({
 
     try {
       // If we have an active running log and quantity > 0, log efficiency metrics before abandoning
-      if (state.activeLogId && 
-          state.activeLogState && 
-          (state.activeLogState === "RUNNING" || state.activeLogState === "SETUP") && 
-          state.currentJob) {
-        
+      if (
+        state.activeLogId &&
+        state.activeLogState &&
+        (state.activeLogState === "RUNNING" ||
+          state.activeLogState === "SETUP") &&
+        state.currentJob
+      ) {
         const qty = parseInt(completedQty) || 0;
-        
+
         // For running logs with quantity, or setup logs, calculate efficiency
-        if ((state.activeLogState === "RUNNING" && qty > 0) || 
-            state.activeLogState === "SETUP") {
-          
+        if (
+          (state.activeLogState === "RUNNING" && qty > 0) ||
+          state.activeLogState === "SETUP"
+        ) {
           // Get the job log to access its start time
           const jobLogResult = await getJobLogById(state.activeLogId);
-          
+
           if (jobLogResult.success && jobLogResult.log) {
             const jobLog = jobLogResult.log;
             const startTime = jobLog.start_time as string;
             const endTime = new Date().toISOString();
             const lookupCode = `${state.currentJob.route_card}-${state.currentJob.contract_number}-${state.currentJob.op_code}`;
-            
+
             // Log efficiency metrics
             const efficiencyResult = await logEfficiency({
               jobLogId: state.activeLogId,
@@ -80,17 +84,20 @@ export default function AbandonDialog({
               startTime,
               endTime,
               jobData: state.currentJob,
-              quantity: state.activeLogState === "RUNNING" ? qty : undefined
+              quantity: state.activeLogState === "RUNNING" ? qty : undefined,
             });
-            
-            if (efficiencyResult.success && efficiencyResult.efficiencyMetrics) {
+
+            if (
+              efficiencyResult.success &&
+              efficiencyResult.efficiencyMetrics
+            ) {
               setEfficiencyMetrics(efficiencyResult.efficiencyMetrics);
               setShowEfficiency(true);
             }
           }
         }
       }
-      
+
       // If we're showing efficiency, we'll call onAbandon after the user views the metrics
       if (!showEfficiency) {
         onAbandon(parseInt(completedQty) || 0, reason);
@@ -105,11 +112,12 @@ export default function AbandonDialog({
       }
     }
   };
-  
+
   const handleEfficiencyClose = () => {
+    console.log("Efficiency display close requested");
     setShowEfficiency(false);
     setIsLogging(false);
-    
+
     // Now complete the abandon process
     onAbandon(parseInt(completedQty) || 0, reason);
   };
@@ -181,13 +189,13 @@ export default function AbandonDialog({
           </CardContent>
         </Card>
       </div>
-      
+
       {/* Efficiency Display */}
       {showEfficiency && efficiencyMetrics && (
-        <EfficiencyDisplay 
-          metrics={efficiencyMetrics} 
-          process={state.activeLogState === "SETUP" ? "Setup" : "Running"} 
-          onClose={handleEfficiencyClose} 
+        <EfficiencyDisplay
+          metrics={efficiencyMetrics}
+          process={state.activeLogState === "SETUP" ? "Setup" : "Running"}
+          onClose={handleEfficiencyClose}
         />
       )}
     </>

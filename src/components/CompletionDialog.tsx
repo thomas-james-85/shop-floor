@@ -141,20 +141,12 @@ export default function CompletionDialog({
   };
 
   const handleEfficiencyClose = () => {
-    // Force the efficiency display to remain visible for 5 seconds
-    console.log("Efficiency display close requested, waiting 5 seconds...");
+    console.log("Efficiency display close requested");
+    setShowEfficiency(false);
+    setIsLogging(false);
 
-    // Disable the button to prevent multiple clicks
-    setIsLogging(true);
-
-    setTimeout(() => {
-      console.log("5 seconds elapsed, now closing efficiency display");
-      setShowEfficiency(false);
-      setIsLogging(false);
-
-      // Now complete the process
-      onComplete(parseInt(completedQty));
-    }, 5000); // 5 seconds
+    // Now complete the process
+    onComplete(parseInt(completedQty));
   };
 
   // Handle Enter key press

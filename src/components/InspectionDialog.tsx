@@ -33,10 +33,11 @@ export default function InspectionDialog({
   const [error, setError] = useState("");
   const [inspector, setInspector] = useState("");
   const [inspectionLogId, setInspectionLogId] = useState<number | null>(null);
-  
+
   // For efficiency display
   const [showEfficiency, setShowEfficiency] = useState<boolean>(false);
-  const [efficiencyMetrics, setEfficiencyMetrics] = useState<EfficiencyMetrics | null>(null);
+  const [efficiencyMetrics, setEfficiencyMetrics] =
+    useState<EfficiencyMetrics | null>(null);
 
   const handleInspectorScan = async () => {
     if (!employeeId.trim()) {
@@ -60,13 +61,17 @@ export default function InspectionDialog({
       setInspector(result.name || "");
 
       // Handle different log creation based on inspection type
-      if (inspectionType === "1st_off" && state.activeLogId && state.activeLogState === "SETUP") {
+      if (
+        inspectionType === "1st_off" &&
+        state.activeLogId &&
+        state.activeLogState === "SETUP"
+      ) {
         // For first-off inspection, we're starting inspection but NOT completing setup yet
         // We'll only complete setup if inspection passes
-        
+
         // Create inspection log without ending the setup log
         const lookup_code = `${state.currentJob?.route_card}-${state.currentJob?.contract_number}-${state.currentJob?.op_code}`;
-        
+
         const response = await fetch("/api/logs/jobs", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -81,7 +86,7 @@ export default function InspectionDialog({
         });
 
         const data = await response.json();
-        
+
         if (data.success && data.log_id) {
           setInspectionLogId(data.log_id);
           // We keep the activeLogId as the SETUP log but track our inspection log separately
@@ -94,7 +99,7 @@ export default function InspectionDialog({
       } else if (inspectionType === "in_process" && state.currentJob) {
         // For in-process inspections, create a standalone inspection log
         const lookup_code = `${state.currentJob.route_card}-${state.currentJob.contract_number}-${state.currentJob.op_code}`;
-        
+
         const response = await fetch("/api/logs/jobs", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -109,7 +114,7 @@ export default function InspectionDialog({
         });
 
         const data = await response.json();
-        
+
         if (data.success && data.log_id) {
           setInspectionLogId(data.log_id);
           // We don't change activeLogId for in-process inspections
@@ -144,31 +149,43 @@ export default function InspectionDialog({
       );
 
       // If this was a first-off inspection that passed, end the setup log and log efficiency
-      if (inspectionType === "1st_off" && state.activeLogId && state.activeLogState === "SETUP" && state.currentJob) {
+      if (
+        inspectionType === "1st_off" &&
+        state.activeLogId &&
+        state.activeLogState === "SETUP" &&
+        state.currentJob
+      ) {
         setLoading(true);
-        
+
         // Complete the setup log and log efficiency
         const setupResult = await completeSetupLog(
           state.activeLogId,
           state.currentJob,
           `Setup passed inspection by ${inspector}. ${comments}`
         );
-        
+
         if (setupResult.success) {
           // Get efficiency metrics from the API
           if (setupResult.efficiencyTracked) {
             try {
-              const efficiencyResponse = await fetch(`/api/logs/efficiency?job_log_id=${state.activeLogId}`);
+              const efficiencyResponse = await fetch(
+                `/api/logs/efficiency?job_log_id=${state.activeLogId}`
+              );
               const efficiencyData = await efficiencyResponse.json();
-              
-              if (efficiencyResponse.ok && efficiencyData.success && efficiencyData.logs && efficiencyData.logs.length > 0) {
+
+              if (
+                efficiencyResponse.ok &&
+                efficiencyData.success &&
+                efficiencyData.logs &&
+                efficiencyData.logs.length > 0
+              ) {
                 // Transform API response to EfficiencyMetrics format
                 const effLog = efficiencyData.logs[0];
                 setEfficiencyMetrics({
                   planned: effLog.planned_time,
                   actual: effLog.actual_time,
                   efficiency: effLog.efficiency,
-                  timeSaved: effLog.time_difference
+                  timeSaved: effLog.time_difference,
                 });
                 setShowEfficiency(true);
               }
@@ -176,13 +193,13 @@ export default function InspectionDialog({
               console.error("Error fetching efficiency metrics:", error);
             }
           }
-          
+
           // Update terminal state to inspection required
           dispatch(terminalActions.setTerminalState("INSPECTION_REQUIRED"));
         } else {
           console.error("Failed to complete setup log:", setupResult.error);
         }
-        
+
         if (!showEfficiency) {
           setLoading(false);
         }
@@ -196,9 +213,10 @@ export default function InspectionDialog({
   };
 
   const handleEfficiencyClose = () => {
+    console.log("Efficiency display close requested");
     setShowEfficiency(false);
     setLoading(false);
-    
+
     // Now complete the inspection process
     onComplete(true, inspector, comments);
   };
@@ -212,7 +230,7 @@ export default function InspectionDialog({
         comments,
         inspectionType === "in_process" ? Number(inspectionQty) || 1 : 1
       );
-      
+
       // For failed first-off inspections, we keep the setup log active (don't end it)
       // This allows for another inspection after corrections are made
     }
@@ -337,10 +355,10 @@ export default function InspectionDialog({
 
       {/* Efficiency Display */}
       {showEfficiency && efficiencyMetrics && (
-        <EfficiencyDisplay 
-          metrics={efficiencyMetrics} 
-          process="Setup" 
-          onClose={handleEfficiencyClose} 
+        <EfficiencyDisplay
+          metrics={efficiencyMetrics}
+          process="Setup"
+          onClose={handleEfficiencyClose}
         />
       )}
     </>
