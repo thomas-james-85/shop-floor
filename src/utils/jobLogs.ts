@@ -258,10 +258,13 @@ export const completeSetupLog = async (
   error?: string;
 }> => {
   try {
+    console.log(`Starting completeSetupLog for log_id: ${setup_log_id}`);
+
     // First, get the job log to access its start time
     const jobLogResult = await getJobLogById(setup_log_id);
 
     if (!jobLogResult.success || !jobLogResult.log) {
+      console.error("Failed to retrieve job log:", jobLogResult.error);
       return {
         success: false,
         error: jobLogResult.error || "Failed to retrieve job log",
@@ -272,6 +275,19 @@ export const completeSetupLog = async (
     const startTime = jobLog.start_time as string;
     const endTime = new Date().toISOString();
 
+    console.log("Job log retrieved successfully:", {
+      startTime,
+      endTime,
+      duration:
+        (new Date(endTime).getTime() - new Date(startTime).getTime()) /
+        1000 /
+        60,
+      minutes:
+        (new Date(endTime).getTime() - new Date(startTime).getTime()) /
+        1000 /
+        60,
+    });
+
     // Complete the setup log
     const updateResult = await updateJobLog(setup_log_id, {
       end_time: endTime,
@@ -279,7 +295,20 @@ export const completeSetupLog = async (
     });
 
     if (!updateResult.success) {
+      console.error("Failed to update job log:", updateResult.error);
       return { success: false, error: updateResult.error };
+    }
+
+    console.log(
+      "Setup log updated successfully, calculating efficiency metrics"
+    );
+
+    // Make sure planned_setup_time exists and is a positive number
+    if (!jobData.planned_setup_time || jobData.planned_setup_time <= 0) {
+      console.warn(
+        `Invalid planned_setup_time: ${jobData.planned_setup_time}, using default value`
+      );
+      jobData.planned_setup_time = 30; // Default to 30 minutes
     }
 
     // Format lookup_code properly
@@ -293,6 +322,12 @@ export const completeSetupLog = async (
       startTime,
       endTime,
       jobData,
+    });
+
+    console.log("Efficiency calculation result:", {
+      success: efficiencyResult.success,
+      metrics: efficiencyResult.efficiencyMetrics,
+      error: efficiencyResult.error,
     });
 
     return {

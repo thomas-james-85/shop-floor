@@ -1,7 +1,7 @@
 // src/components/EfficiencyDisplay.tsx
 "use client";
 
-import React from "react";
+import React, { useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { EfficiencyMetrics } from "@/utils/efficiencyCalculator";
 
@@ -16,6 +16,26 @@ export default function EfficiencyDisplay({
   process,
   onClose,
 }: EfficiencyDisplayProps) {
+  // Log when component mounts to verify it's being rendered
+  useEffect(() => {
+    console.log(
+      `EfficiencyDisplay mounted for ${process} with metrics:`,
+      metrics
+    );
+
+    // Add event listener to make sure the component captures clicks
+    const handleClick = () => {
+      console.log("Click detected in EfficiencyDisplay");
+    };
+
+    document.addEventListener("click", handleClick);
+
+    return () => {
+      console.log("EfficiencyDisplay unmounting");
+      document.removeEventListener("click", handleClick);
+    };
+  }, [metrics, process]);
+
   // Function to determine color based on efficiency
   const getEfficiencyColor = (efficiency: number) => {
     if (efficiency >= 110) return "text-green-600";
@@ -35,9 +55,14 @@ export default function EfficiencyDisplay({
   // Calculate the percentage for the gauge (capped at 150% for display purposes)
   const gaugePercentage = (Math.min(metrics.efficiency, 150) / 150) * 100;
 
+  const handleCloseClick = () => {
+    console.log("EfficiencyDisplay close button clicked");
+    onClose();
+  };
+
   return (
-    <div className="fixed inset-0 flex items-center justify-center bg-gray-900 bg-opacity-50 z-50">
-      <Card className="w-[600px] shadow-lg">
+    <div className="fixed inset-0 flex items-center justify-center bg-gray-900 bg-opacity-75 z-[100]">
+      <Card className="w-[600px] shadow-xl border-4 border-gray-300">
         <CardContent className="p-6">
           <div className="bg-white rounded-lg">
             <div className="flex justify-between items-center mb-4">
@@ -117,7 +142,7 @@ export default function EfficiencyDisplay({
 
             <div className="mt-6 flex justify-center">
               <button
-                onClick={onClose}
+                onClick={handleCloseClick}
                 className="px-6 py-4 bg-blue-600 text-white text-xl font-bold rounded-lg hover:bg-blue-700 shadow-lg transition-colors transform hover:scale-105 active:scale-95 animate-pulse"
               >
                 Continue

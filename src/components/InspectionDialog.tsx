@@ -39,6 +39,7 @@ export default function InspectionDialog({
   const [showEfficiency, setShowEfficiency] = useState<boolean>(false);
   const [efficiencyMetrics, setEfficiencyMetrics] =
     useState<EfficiencyMetrics | null>(null);
+  const [inspectionPassed, setInspectionPassed] = useState<boolean>(false);
 
   const handleInspectorScan = async () => {
     if (!employeeId.trim()) {
@@ -140,6 +141,9 @@ export default function InspectionDialog({
   };
 
   const handleInspectionPass = async () => {
+    setInspectionPassed(true);
+    setLoading(true);
+
     if (inspectionLogId) {
       // Complete the inspection log
       await completeInspection(
@@ -156,9 +160,9 @@ export default function InspectionDialog({
         state.activeLogState === "SETUP" &&
         state.currentJob
       ) {
-        setLoading(true);
-
         try {
+          console.log("Completing setup log after inspection pass");
+
           // Complete the setup log and log efficiency
           const setupResult = await completeSetupLog(
             state.activeLogId,
@@ -166,11 +170,13 @@ export default function InspectionDialog({
             `Setup passed inspection by ${inspector}. ${comments}`
           );
 
+          console.log("Setup completion result:", setupResult);
+
           if (setupResult.success) {
             // Get efficiency metrics directly from the completed setup log
             if (setupResult.efficiencyMetrics) {
               console.log(
-                "Setup efficiency metrics from completeSetupLog:",
+                "Setup efficiency metrics available:",
                 setupResult.efficiencyMetrics
               );
               setEfficiencyMetrics(setupResult.efficiencyMetrics);
@@ -190,44 +196,56 @@ export default function InspectionDialog({
                 efficiencyResult.efficiencyMetrics
               ) {
                 console.log(
-                  "Setup efficiency metrics from API:",
+                  "Fetched efficiency metrics from API:",
                   efficiencyResult.efficiencyMetrics
                 );
                 setEfficiencyMetrics(efficiencyResult.efficiencyMetrics);
                 setShowEfficiency(true);
               } else {
-                console.warn(
-                  "No efficiency metrics found for setup log:",
-                  state.activeLogId
-                );
+                console.warn("No efficiency metrics found");
+                finishInspectionPass();
               }
             }
-
-            // Update terminal state to inspection required
-            dispatch(terminalActions.setTerminalState("INSPECTION_REQUIRED"));
           } else {
             console.error("Failed to complete setup log:", setupResult.error);
+            finishInspectionPass();
           }
         } catch (error) {
           console.error("Error during setup completion:", error);
-        } finally {
-          if (!showEfficiency) {
-            setLoading(false);
-          }
+          finishInspectionPass();
         }
+      } else {
+        // Not a first-off inspection or no active setup log
+        finishInspectionPass();
       }
+    } else {
+      // No inspection log created
+      finishInspectionPass();
+    }
+  };
+
+  const finishInspectionPass = () => {
+    // Update terminal state to inspection required for first-off inspections
+    if (inspectionType === "1st_off") {
+      dispatch(terminalActions.setTerminalState("INSPECTION_REQUIRED"));
     }
 
-    // Call the onComplete handler from parent component only if we're not showing efficiency
+    setLoading(false);
+
+    // Only call onComplete if we're not showing efficiency
     if (!showEfficiency) {
       onComplete(true, inspector, comments);
     }
   };
 
   const handleEfficiencyClose = () => {
-    console.log("Efficiency display close requested");
+    console.log("Efficiency display closed");
     setShowEfficiency(false);
-    setLoading(false);
+
+    // Update terminal state after efficiency display is closed
+    if (inspectionType === "1st_off") {
+      dispatch(terminalActions.setTerminalState("INSPECTION_REQUIRED"));
+    }
 
     // Now complete the inspection process
     onComplete(true, inspector, comments);
