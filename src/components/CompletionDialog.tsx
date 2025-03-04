@@ -28,6 +28,7 @@ export default function CompletionDialog({
   const [showEfficiency, setShowEfficiency] = useState<boolean>(false);
   const [efficiencyMetrics, setEfficiencyMetrics] =
     useState<EfficiencyMetrics | null>(null);
+  const [completionQty, setCompletionQty] = useState<number | null>(null);
 
   const handleComplete = async () => {
     // Validate input
@@ -99,15 +100,22 @@ export default function CompletionDialog({
 
         if (efficiencyResult.success && efficiencyResult.efficiencyMetrics) {
           setEfficiencyMetrics(efficiencyResult.efficiencyMetrics);
+          // Save the completion quantity for later
+          setCompletionQty(qty);
+          // Show the efficiency display
           setShowEfficiency(true);
         } else {
           console.error("Failed to log efficiency:", efficiencyResult.error);
+          // If efficiency logging fails, still continue with the completion
+          onComplete(qty);
         }
 
         // Clear active log in context
         dispatch(terminalActions.clearActiveLog());
       } else {
         console.warn("No active running log found for completion");
+        // If no active log, just complete without efficiency
+        onComplete(qty);
       }
 
       // Update the job in the database
@@ -124,11 +132,11 @@ export default function CompletionDialog({
         console.log("Job updated successfully:", jobResult.updatedJob);
       }
 
-      // If we're showing efficiency metrics, the onComplete callback will be called
-      // after the user views the metrics
+      // If we're not showing efficiency metrics, complete right away
       if (!showEfficiency) {
         onComplete(qty);
       }
+      // Otherwise, completion will happen in handleEfficiencyClose
     } catch (error) {
       console.error("Completion Error:", error);
       setError("An error occurred. Please try again.");
@@ -145,8 +153,13 @@ export default function CompletionDialog({
     setShowEfficiency(false);
     setIsLogging(false);
 
-    // Now complete the process
-    onComplete(parseInt(completedQty));
+    // Only call onComplete if we have a saved completion quantity
+    if (completionQty !== null) {
+      onComplete(completionQty);
+    } else {
+      // Fallback to the parsed input value if somehow completionQty wasn't set
+      onComplete(parseInt(completedQty));
+    }
   };
 
   // Handle Enter key press

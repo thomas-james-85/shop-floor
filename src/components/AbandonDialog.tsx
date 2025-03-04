@@ -5,7 +5,7 @@ import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { useTerminal } from "@/contexts/terminalContext"; // Removed unused terminalActions
+import { useTerminal } from "@/contexts/terminalContext";
 import { EfficiencyMetrics } from "@/utils/efficiencyCalculator";
 import { getJobLogById } from "@/utils/jobLogs";
 import { logEfficiency } from "@/utils/efficiencyLogger";
@@ -32,6 +32,10 @@ export default function AbandonDialog({
   const [showEfficiency, setShowEfficiency] = useState<boolean>(false);
   const [efficiencyMetrics, setEfficiencyMetrics] =
     useState<EfficiencyMetrics | null>(null);
+  const [abandonData, setAbandonData] = useState<{
+    qty: number;
+    reason: string;
+  } | null>(null);
 
   const handleAbandon = async () => {
     // Validate input
@@ -91,17 +95,31 @@ export default function AbandonDialog({
               efficiencyResult.success &&
               efficiencyResult.efficiencyMetrics
             ) {
+              // Store the efficiency metrics
               setEfficiencyMetrics(efficiencyResult.efficiencyMetrics);
+              // Store abandon data for after efficiency display
+              setAbandonData({
+                qty: qty,
+                reason: reason,
+              });
+              // Show the efficiency display
               setShowEfficiency(true);
+            } else {
+              // If efficiency logging fails, still continue with abandonment
+              onAbandon(qty, reason);
             }
           }
+        } else {
+          // No efficiency to display, just abandon
+          onAbandon(parseInt(completedQty) || 0, reason);
         }
-      }
-
-      // If we're showing efficiency, we'll call onAbandon after the user views the metrics
-      if (!showEfficiency) {
+      } else {
+        // No active log or no need for efficiency, just abandon
         onAbandon(parseInt(completedQty) || 0, reason);
       }
+
+      // If we're not showing efficiency, we'll call onAbandon above
+      // Otherwise we'll call it in handleEfficiencyClose
     } catch (error) {
       console.error("Error during abandon process:", error);
       setError("An error occurred. Please try again.");
@@ -118,8 +136,13 @@ export default function AbandonDialog({
     setShowEfficiency(false);
     setIsLogging(false);
 
-    // Now complete the abandon process
-    onAbandon(parseInt(completedQty) || 0, reason);
+    // Complete the abandon process with stored data
+    if (abandonData) {
+      onAbandon(abandonData.qty, abandonData.reason);
+    } else {
+      // Fallback if abandonData somehow isn't set
+      onAbandon(parseInt(completedQty) || 0, reason);
+    }
   };
 
   // Handle Enter key press
