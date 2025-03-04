@@ -1,6 +1,7 @@
 // src/utils/jobLogs.ts
 import { TerminalData, JobData } from "@/types";
 import { logEfficiency } from "./efficiencyLogger";
+import { EfficiencyMetrics } from "./efficiencyCalculator";
 
 interface JobLogParams {
   lookup_code: string;
@@ -253,33 +254,37 @@ export const completeSetupLog = async (
   success: boolean;
   log?: Record<string, unknown>;
   efficiencyTracked?: boolean;
+  efficiencyMetrics?: EfficiencyMetrics;
   error?: string;
 }> => {
   try {
     // First, get the job log to access its start time
     const jobLogResult = await getJobLogById(setup_log_id);
-    
+
     if (!jobLogResult.success || !jobLogResult.log) {
-      return { success: false, error: jobLogResult.error || "Failed to retrieve job log" };
+      return {
+        success: false,
+        error: jobLogResult.error || "Failed to retrieve job log",
+      };
     }
-    
+
     const jobLog = jobLogResult.log;
     const startTime = jobLog.start_time as string;
     const endTime = new Date().toISOString();
-    
+
     // Complete the setup log
     const updateResult = await updateJobLog(setup_log_id, {
       end_time: endTime,
       comments,
     });
-    
+
     if (!updateResult.success) {
       return { success: false, error: updateResult.error };
     }
-    
+
     // Format lookup_code properly
     const lookup_code = `${jobData.route_card}-${jobData.contract_number}-${jobData.op_code}`;
-    
+
     // Log efficiency metrics
     const efficiencyResult = await logEfficiency({
       jobLogId: setup_log_id,
@@ -289,17 +294,18 @@ export const completeSetupLog = async (
       endTime,
       jobData,
     });
-    
+
     return {
       success: true,
       log: updateResult.log,
       efficiencyTracked: efficiencyResult.success,
+      efficiencyMetrics: efficiencyResult.efficiencyMetrics,
     };
   } catch (error) {
     console.error("Error completing setup log:", error);
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : "Unknown error" 
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Unknown error",
     };
   }
 };
@@ -378,17 +384,21 @@ export const abandonJob = async (
 }> => {
   try {
     // First get the job log to access its start time (for efficiency tracking)
-    if ((logState === "SETUP" || (logState === "RUNNING" && completedQty && completedQty > 0)) && jobData) {
+    if (
+      (logState === "SETUP" ||
+        (logState === "RUNNING" && completedQty && completedQty > 0)) &&
+      jobData
+    ) {
       const jobLogResult = await getJobLogById(log_id);
-      
+
       if (jobLogResult.success && jobLogResult.log) {
         const jobLog = jobLogResult.log;
         const startTime = jobLog.start_time as string;
         const endTime = new Date().toISOString();
-        
+
         // Format lookup_code properly
         const lookup_code = `${jobData.route_card}-${jobData.contract_number}-${jobData.op_code}`;
-        
+
         // Log efficiency metrics
         // Note: We're logging efficiency but not directly returning it here
         // The AbandonDialog component handles displaying the metrics
@@ -400,7 +410,7 @@ export const abandonJob = async (
             startTime,
             endTime,
             jobData,
-            quantity: logState === "RUNNING" ? completedQty : undefined
+            quantity: logState === "RUNNING" ? completedQty : undefined,
           });
         } catch (err) {
           console.error("Failed to log efficiency for abandoned job:", err);
@@ -408,7 +418,7 @@ export const abandonJob = async (
         }
       }
     }
-    
+
     // Update the job log with abandon information
     const updateParams: JobLogUpdateParams = {
       end_time: true,
@@ -421,10 +431,10 @@ export const abandonJob = async (
     }
 
     const result = await updateJobLog(log_id, updateParams);
-    
+
     return {
       success: result.success,
-      error: result.error
+      error: result.error,
     };
   } catch (error) {
     console.error("Error abandoning job:", error);
@@ -453,18 +463,18 @@ export const pauseJob = async (
   try {
     // First, get the job log to access its start time (for efficiency calculation)
     const jobLogResult = await getJobLogById(running_log_id);
-    
+
     if (!jobLogResult.success || !jobLogResult.log) {
-      return { 
-        success: false, 
-        error: jobLogResult.error || "Failed to retrieve job log"
+      return {
+        success: false,
+        error: jobLogResult.error || "Failed to retrieve job log",
       };
     }
-    
+
     const jobLog = jobLogResult.log;
     const startTime = jobLog.start_time as string;
     const endTime = new Date().toISOString();
-    
+
     // Complete the current running log
     const updateResult = await updateJobLog(running_log_id, {
       end_time: endTime,
@@ -478,7 +488,7 @@ export const pauseJob = async (
     // Log efficiency metrics for the partial run
     if (completedQty > 0) {
       const lookup_code = `${jobData.route_card}-${jobData.contract_number}-${jobData.op_code}`;
-      
+
       await logEfficiency({
         jobLogId: running_log_id,
         lookupCode: lookup_code,
@@ -486,7 +496,7 @@ export const pauseJob = async (
         startTime,
         endTime,
         jobData,
-        quantity: completedQty
+        quantity: completedQty,
       });
     }
 

@@ -9,6 +9,7 @@ import { authenticateUser } from "@/utils/authenticateUser";
 import { useTerminal, terminalActions } from "@/contexts/terminalContext";
 import { completeInspection, completeSetupLog } from "@/utils/jobLogs";
 import { EfficiencyMetrics } from "@/utils/efficiencyCalculator";
+import { getEfficiencyForJobLog } from "@/utils/efficiencyLogger";
 import EfficiencyDisplay from "./EfficiencyDisplay";
 
 type InspectionType = "1st_off" | "in_process";
@@ -157,65 +158,62 @@ export default function InspectionDialog({
       ) {
         setLoading(true);
 
-        // Complete the setup log and log efficiency
-        const setupResult = await completeSetupLog(
-          state.activeLogId,
-          state.currentJob,
-          `Setup passed inspection by ${inspector}. ${comments}`
-        );
+        try {
+          // Complete the setup log and log efficiency
+          const setupResult = await completeSetupLog(
+            state.activeLogId,
+            state.currentJob,
+            `Setup passed inspection by ${inspector}. ${comments}`
+          );
 
-        if (setupResult.success) {
-          // Get efficiency metrics from the API
-          if (setupResult.efficiencyTracked) {
-            try {
+          if (setupResult.success) {
+            // Get efficiency metrics directly from the completed setup log
+            if (setupResult.efficiencyMetrics) {
               console.log(
-                "Fetching setup efficiency metrics for log ID:",
+                "Setup efficiency metrics from completeSetupLog:",
+                setupResult.efficiencyMetrics
+              );
+              setEfficiencyMetrics(setupResult.efficiencyMetrics);
+              setShowEfficiency(true);
+            } else {
+              console.warn(
+                "No efficiency metrics returned from completeSetupLog"
+              );
+
+              // Fallback to fetching from the API if needed
+              const efficiencyResult = await getEfficiencyForJobLog(
                 state.activeLogId
               );
-              const efficiencyResponse = await fetch(
-                `/api/logs/efficiency?job_log_id=${state.activeLogId}`
-              );
-              const efficiencyData = await efficiencyResponse.json();
-              console.log("Received efficiency data:", efficiencyData);
 
               if (
-                efficiencyResponse.ok &&
-                efficiencyData.success &&
-                efficiencyData.metrics && // Changed from efficiencyData.logs to efficiencyData.metrics
-                efficiencyData.metrics.length > 0 // Changed from logs to metrics
+                efficiencyResult.success &&
+                efficiencyResult.efficiencyMetrics
               ) {
-                // Transform API response to EfficiencyMetrics format
-                const effLog = efficiencyData.metrics[0]; // Changed from logs to metrics
-                setEfficiencyMetrics({
-                  planned: effLog.planned_time,
-                  actual: effLog.actual_time,
-                  efficiency: effLog.efficiency_percentage || effLog.efficiency, // Support both field names
-                  timeSaved: effLog.time_saved || effLog.time_difference, // Support both field names
-                });
-                setShowEfficiency(true);
                 console.log(
-                  "Setup efficiency metrics displayed:",
-                  efficiencyMetrics
+                  "Setup efficiency metrics from API:",
+                  efficiencyResult.efficiencyMetrics
                 );
+                setEfficiencyMetrics(efficiencyResult.efficiencyMetrics);
+                setShowEfficiency(true);
               } else {
                 console.warn(
                   "No efficiency metrics found for setup log:",
                   state.activeLogId
                 );
               }
-            } catch (error) {
-              console.error("Error fetching efficiency metrics:", error);
             }
+
+            // Update terminal state to inspection required
+            dispatch(terminalActions.setTerminalState("INSPECTION_REQUIRED"));
+          } else {
+            console.error("Failed to complete setup log:", setupResult.error);
           }
-
-          // Update terminal state to inspection required
-          dispatch(terminalActions.setTerminalState("INSPECTION_REQUIRED"));
-        } else {
-          console.error("Failed to complete setup log:", setupResult.error);
-        }
-
-        if (!showEfficiency) {
-          setLoading(false);
+        } catch (error) {
+          console.error("Error during setup completion:", error);
+        } finally {
+          if (!showEfficiency) {
+            setLoading(false);
+          }
         }
       }
     }
