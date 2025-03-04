@@ -68,6 +68,9 @@ export default function CompletionDialog({
         }
 
         const jobLog = jobLogData.log;
+        const operatorId = jobLog.user_id as string; // Extract the operator ID
+        const machineId = state.terminal.terminalId?.toString(); // Get terminal ID
+
         if (!jobLog) {
           console.error("No job log found");
           setError("Failed to fetch log data. Please try again.");
@@ -96,6 +99,8 @@ export default function CompletionDialog({
           endTime: endTime.toISOString(),
           jobData: state.currentJob,
           quantity: qty,
+          operatorId, // Add this
+          machineId, // Add this
         });
 
         if (efficiencyResult.success && efficiencyResult.efficiencyMetrics) {

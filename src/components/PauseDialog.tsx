@@ -75,6 +75,8 @@ export default function PauseDialog({
               const jobLog = jobLogResult.log;
               const startTime = jobLog.start_time as string;
               const endTime = new Date().toISOString();
+              const operatorId = jobLog.user_id as string; // Extract the operator ID
+              const machineId = state.terminal.terminalId?.toString();
 
               // Calculate and log efficiency metrics
               const lookupCode = `${state.currentJob.route_card}-${state.currentJob.contract_number}-${state.currentJob.op_code}`;
@@ -93,6 +95,8 @@ export default function PauseDialog({
                 endTime,
                 jobData: state.currentJob,
                 quantity: qty,
+                operatorId, // Add this
+                machineId,
               });
 
               console.log("Pause efficiency result:", efficiencyResult);

@@ -79,6 +79,8 @@ export default function AbandonDialog({
             const startTime = jobLog.start_time as string;
             const endTime = new Date().toISOString();
             const lookupCode = `${state.currentJob.route_card}-${state.currentJob.contract_number}-${state.currentJob.op_code}`;
+            const operatorId = jobLog.user_id as string; // Extract the user ID
+            const machineId = state.terminal.terminalId?.toString(); // Get terminal ID
 
             // Log efficiency metrics
             const efficiencyResult = await logEfficiency({
@@ -89,6 +91,8 @@ export default function AbandonDialog({
               endTime,
               jobData: state.currentJob,
               quantity: state.activeLogState === "RUNNING" ? qty : undefined,
+              operatorId, // Add this
+              machineId, // Add this
             });
 
             if (

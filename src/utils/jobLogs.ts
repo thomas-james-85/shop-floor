@@ -274,6 +274,8 @@ export const completeSetupLog = async (
     const jobLog = jobLogResult.log;
     const startTime = jobLog.start_time as string;
     const endTime = new Date().toISOString();
+    const operatorId = jobLog.user_id as string; // Extract the setter ID
+    const machineId = jobLog.machine_id as string; // Extract the machine ID
 
     console.log("Job log retrieved successfully:", {
       startTime,
@@ -322,6 +324,8 @@ export const completeSetupLog = async (
       startTime,
       endTime,
       jobData,
+      operatorId,
+      machineId,
     });
 
     console.log("Efficiency calculation result:", {
@@ -430,6 +434,8 @@ export const abandonJob = async (
         const jobLog = jobLogResult.log;
         const startTime = jobLog.start_time as string;
         const endTime = new Date().toISOString();
+        const operatorId = jobLog.user_id as string; // Extract the user ID
+        const machineId = jobLog.machine_id as string; // Extract the machine ID
 
         // Format lookup_code properly
         const lookup_code = `${jobData.route_card}-${jobData.contract_number}-${jobData.op_code}`;
@@ -446,6 +452,8 @@ export const abandonJob = async (
             endTime,
             jobData,
             quantity: logState === "RUNNING" ? completedQty : undefined,
+            operatorId, // Add this
+            machineId, // Add this
           });
         } catch (err) {
           console.error("Failed to log efficiency for abandoned job:", err);
