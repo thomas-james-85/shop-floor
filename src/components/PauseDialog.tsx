@@ -68,32 +68,54 @@ export default function PauseDialog({
 
         // First, get the job log to access its start time
         if (qty > 0) {
-          const jobLogResult = await getJobLogById(state.activeLogId);
+          try {
+            const jobLogResult = await getJobLogById(state.activeLogId);
 
-          if (jobLogResult.success && jobLogResult.log) {
-            const jobLog = jobLogResult.log;
-            const startTime = jobLog.start_time as string;
-            const endTime = new Date().toISOString();
+            if (jobLogResult.success && jobLogResult.log) {
+              const jobLog = jobLogResult.log;
+              const startTime = jobLog.start_time as string;
+              const endTime = new Date().toISOString();
 
-            // Calculate and log efficiency metrics
-            const lookupCode = `${state.currentJob.route_card}-${state.currentJob.contract_number}-${state.currentJob.op_code}`;
-            const efficiencyResult = await logEfficiency({
-              jobLogId: state.activeLogId,
-              lookupCode,
-              logType: "RUNNING",
-              startTime,
-              endTime,
-              jobData: state.currentJob,
-              quantity: qty,
-            });
+              // Calculate and log efficiency metrics
+              const lookupCode = `${state.currentJob.route_card}-${state.currentJob.contract_number}-${state.currentJob.op_code}`;
+              console.log("Calculating efficiency metrics for pause with:", {
+                jobLogId: state.activeLogId,
+                startTime,
+                endTime,
+                quantity: qty,
+              });
 
-            if (
-              efficiencyResult.success &&
-              efficiencyResult.efficiencyMetrics
-            ) {
-              setEfficiencyMetrics(efficiencyResult.efficiencyMetrics);
-              // We'll show this after pause log creation
+              const efficiencyResult = await logEfficiency({
+                jobLogId: state.activeLogId,
+                lookupCode,
+                logType: "RUNNING",
+                startTime,
+                endTime,
+                jobData: state.currentJob,
+                quantity: qty,
+              });
+
+              console.log("Pause efficiency result:", efficiencyResult);
+
+              if (
+                efficiencyResult.success &&
+                efficiencyResult.efficiencyMetrics
+              ) {
+                console.log(
+                  "Setting pause efficiency metrics:",
+                  efficiencyResult.efficiencyMetrics
+                );
+                setEfficiencyMetrics(efficiencyResult.efficiencyMetrics);
+                // We'll show this after pause log creation
+              } else {
+                console.warn(
+                  "Failed to get pause efficiency metrics:",
+                  efficiencyResult.error
+                );
+              }
             }
+          } catch (error) {
+            console.error("Error calculating efficiency for pause:", error);
           }
         }
 
@@ -154,6 +176,7 @@ export default function PauseDialog({
 
         // If we have efficiency metrics to display, show them before completing pause
         if (efficiencyMetrics) {
+          console.log("Showing efficiency for pause operation");
           setShowEfficiency(true);
           // Store data for when efficiency display is closed
           setPauseComplete({
@@ -162,6 +185,7 @@ export default function PauseDialog({
           });
           return; // Don't proceed with onPause until efficiency is viewed
         } else {
+          console.log("No efficiency metrics to show for pause");
           // No efficiency to show, complete pause immediately
           onPause(reason, updatedJobData);
         }

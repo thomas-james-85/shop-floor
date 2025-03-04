@@ -168,26 +168,40 @@ export default function InspectionDialog({
           // Get efficiency metrics from the API
           if (setupResult.efficiencyTracked) {
             try {
+              console.log(
+                "Fetching setup efficiency metrics for log ID:",
+                state.activeLogId
+              );
               const efficiencyResponse = await fetch(
                 `/api/logs/efficiency?job_log_id=${state.activeLogId}`
               );
               const efficiencyData = await efficiencyResponse.json();
+              console.log("Received efficiency data:", efficiencyData);
 
               if (
                 efficiencyResponse.ok &&
                 efficiencyData.success &&
-                efficiencyData.logs &&
-                efficiencyData.logs.length > 0
+                efficiencyData.metrics && // Changed from efficiencyData.logs to efficiencyData.metrics
+                efficiencyData.metrics.length > 0 // Changed from logs to metrics
               ) {
                 // Transform API response to EfficiencyMetrics format
-                const effLog = efficiencyData.logs[0];
+                const effLog = efficiencyData.metrics[0]; // Changed from logs to metrics
                 setEfficiencyMetrics({
                   planned: effLog.planned_time,
                   actual: effLog.actual_time,
-                  efficiency: effLog.efficiency,
-                  timeSaved: effLog.time_difference,
+                  efficiency: effLog.efficiency_percentage || effLog.efficiency, // Support both field names
+                  timeSaved: effLog.time_saved || effLog.time_difference, // Support both field names
                 });
                 setShowEfficiency(true);
+                console.log(
+                  "Setup efficiency metrics displayed:",
+                  efficiencyMetrics
+                );
+              } else {
+                console.warn(
+                  "No efficiency metrics found for setup log:",
+                  state.activeLogId
+                );
               }
             } catch (error) {
               console.error("Error fetching efficiency metrics:", error);
