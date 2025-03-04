@@ -11,6 +11,7 @@ import { updateJobCompletion } from "@/utils/jobUpdates";
 import { EfficiencyMetrics } from "@/utils/efficiencyCalculator";
 import { logEfficiency } from "@/utils/efficiencyLogger";
 import EfficiencyDisplay from "./EfficiencyDisplay";
+import RejectFlowController, { RejectData } from "./RejectFlowController";
 
 type CompletionDialogProps = {
   onComplete: (completedQty: number) => void;
@@ -30,6 +31,10 @@ export default function CompletionDialog({
     useState<EfficiencyMetrics | null>(null);
   const [completionQty, setCompletionQty] = useState<number | null>(null);
 
+  // New states for the reject flow
+  const [showRejectFlow, setShowRejectFlow] = useState<boolean>(false);
+  const [validatedQty, setValidatedQty] = useState<number>(0);
+
   const handleComplete = async () => {
     // Validate input
     if (!completedQty.trim()) {
@@ -44,6 +49,29 @@ export default function CompletionDialog({
       return;
     }
 
+    if (state.currentJob && qty > state.currentJob.balance) {
+      setError(
+        `Quantity cannot exceed the current balance (${state.currentJob.balance})`
+      );
+      return;
+    }
+
+    // Store the validated quantity
+    setValidatedQty(qty);
+
+    // Check if there will be a remaining balance (trigger reject flow)
+    if (state.currentJob && qty < state.currentJob.balance) {
+      // Start the reject flow
+      setShowRejectFlow(true);
+      return; // Don't proceed with completion yet
+    }
+
+    // If no reject flow needed, continue with normal completion
+    proceedWithCompletion(qty);
+  };
+
+  // This function handles the regular job completion (after validation and possible reject flow)
+  const proceedWithCompletion = async (qty: number) => {
     setIsLogging(true);
     setError("");
 
@@ -68,8 +96,8 @@ export default function CompletionDialog({
         }
 
         const jobLog = jobLogData.log;
-        const operatorId = jobLog.user_id as string; // Extract the operator ID
-        const machineId = state.terminal.terminalId?.toString(); // Get terminal ID
+        const operatorId = jobLog.user_id as string;
+        const machineId = state.terminal.terminalId?.toString();
 
         if (!jobLog) {
           console.error("No job log found");
@@ -99,8 +127,8 @@ export default function CompletionDialog({
           endTime: endTime.toISOString(),
           jobData: state.currentJob,
           quantity: qty,
-          operatorId, // Add this
-          machineId, // Add this
+          operatorId,
+          machineId,
         });
 
         if (efficiencyResult.success && efficiencyResult.efficiencyMetrics) {
@@ -112,7 +140,7 @@ export default function CompletionDialog({
         } else {
           console.error("Failed to log efficiency:", efficiencyResult.error);
           // If efficiency logging fails, still continue with the completion
-          onComplete(qty);
+          finalizeCompletion(qty);
         }
 
         // Clear active log in context
@@ -120,7 +148,7 @@ export default function CompletionDialog({
       } else {
         console.warn("No active running log found for completion");
         // If no active log, just complete without efficiency
-        onComplete(qty);
+        finalizeCompletion(qty);
       }
 
       // Update the job in the database
@@ -136,14 +164,6 @@ export default function CompletionDialog({
 
         console.log("Job updated successfully:", jobResult.updatedJob);
       }
-
-      // REMOVED: Don't check showEfficiency here to avoid race condition
-      // if (!showEfficiency) {
-      //   onComplete(qty);
-      // }
-
-      // We'll only call onComplete in handleEfficiencyClose or
-      // in the explicit "no efficiency metrics" case above
     } catch (error) {
       console.error("Completion Error:", error);
       setError("An error occurred. Please try again.");
@@ -155,6 +175,11 @@ export default function CompletionDialog({
     }
   };
 
+  // Final step to call the parent component's onComplete
+  const finalizeCompletion = (qty: number) => {
+    onComplete(qty);
+  };
+
   const handleEfficiencyClose = () => {
     console.log("Efficiency display close requested");
     setShowEfficiency(false);
@@ -162,11 +187,33 @@ export default function CompletionDialog({
 
     // Only call onComplete if we have a saved completion quantity
     if (completionQty !== null) {
-      onComplete(completionQty);
+      finalizeCompletion(completionQty);
     } else {
       // Fallback to the parsed input value if somehow completionQty wasn't set
-      onComplete(parseInt(completedQty));
+      finalizeCompletion(parseInt(completedQty));
     }
+  };
+
+  // Handle completion of reject flow
+  const handleRejectFlowComplete = (rejectData?: RejectData) => {
+    console.log("Reject flow completed:", rejectData);
+    setShowRejectFlow(false);
+
+    // If reject data exists, it means the reject was successfully created
+    if (rejectData) {
+      // Log the reject data for debugging
+      console.log("Remanufacture request created:", rejectData);
+    }
+
+    // Continue with regular job completion
+    proceedWithCompletion(validatedQty);
+  };
+
+  // Handle cancel of reject flow
+  const handleRejectFlowCancel = () => {
+    console.log("Reject flow cancelled");
+    setShowRejectFlow(false);
+    setIsLogging(false);
   };
 
   // Handle Enter key press
@@ -247,6 +294,19 @@ export default function CompletionDialog({
           metrics={efficiencyMetrics}
           process="Running"
           onClose={handleEfficiencyClose}
+        />
+      )}
+
+      {/* Reject Flow */}
+      {showRejectFlow && state.currentJob && state.terminal && (
+        <RejectFlowController
+          jobData={state.currentJob}
+          completedQuantity={validatedQty}
+          terminalData={state.terminal}
+          operatorId={state.terminal.loggedInUser || ""}
+          operatorName={state.terminal.loggedInUser || ""}
+          onComplete={handleRejectFlowComplete}
+          onCancel={handleRejectFlowCancel}
         />
       )}
     </>

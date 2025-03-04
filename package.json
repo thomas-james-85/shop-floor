@@ -10,6 +10,8 @@
   },
   "dependencies": {
     "@aws-sdk/rds-signer": "^3.758.0",
+    "@radix-ui/react-label": "^2.1.2",
+    "@radix-ui/react-radio-group": "^1.2.3",
     "@radix-ui/react-slot": "^1.1.2",
     "@vercel/functions": "^2.0.0",
     "class-variance-authority": "^0.7.1",
