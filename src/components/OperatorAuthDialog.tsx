@@ -125,9 +125,14 @@ export default function OperatorAuthDialog({
           );
 
           if (logResult.success && logResult.running_log_id) {
+            // Set active log
             dispatch(
               terminalActions.setActiveLog(logResult.running_log_id, "RUNNING")
             );
+
+            // *** CHANGED: Set state to INSPECTION_REQUIRED instead of RUNNING ***
+            console.log("Setting state to INSPECTION_REQUIRED after resume");
+            dispatch(terminalActions.setTerminalState("INSPECTION_REQUIRED"));
           } else {
             console.error("Failed to create resume log:", logResult.error);
             setError(logResult.error || "Failed to resume job");
@@ -144,6 +149,8 @@ export default function OperatorAuthDialog({
 
           if (logResult.success && logResult.log_id) {
             dispatch(terminalActions.setActiveLog(logResult.log_id, "RUNNING"));
+            // For normal transition after inspection, we still go directly to RUNNING
+            dispatch(terminalActions.setTerminalState("RUNNING"));
           } else {
             console.error("Failed to create running log:", logResult.error);
             setError(logResult.error || "Failed to start job");

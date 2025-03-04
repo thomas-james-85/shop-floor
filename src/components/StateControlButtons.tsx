@@ -80,17 +80,23 @@ export default function StateControlButtons() {
         // First-off inspection passed - update terminal state to INSPECTION_REQUIRED
         // Note: The setup log is completed inside InspectionDialog when inspection passes
         dispatch(terminalActions.setTerminalState("INSPECTION_REQUIRED"));
-      }
 
-      // For in-process inspection that passes, we don't need to change anything
-      // Show operator authentication dialog if first-off inspection passed
-      if (inspectionType === "1st_off") {
+        // Show operator authentication dialog
         setShowOperatorAuthDialog(true);
+      } else if (terminalState === "INSPECTION_REQUIRED") {
+        // *** CHANGED: This is for in-process inspection after resume ***
+        // If inspection passes, transition from INSPECTION_REQUIRED to RUNNING
+        dispatch(terminalActions.setTerminalState("RUNNING"));
+        console.log(
+          "Post-resume inspection passed. Transitioning to RUNNING state."
+        );
       }
+      // For regular in-process inspections during RUNNING state,
+      // we don't change the state - it remains RUNNING
     } else {
       // Failed inspection handling
       if (inspectionType === "in_process") {
-        // For in-process inspection failures, stay in RUNNING state
+        // For in-process inspection failures, stay in current state
         alert(
           "In-process inspection failed. Please correct the issues and try again."
         );
@@ -116,8 +122,12 @@ export default function StateControlButtons() {
     // Update terminal with operator name
     dispatch(terminalActions.setLoggedInUser(operatorName));
 
-    // Change state to RUNNING
-    dispatch(terminalActions.setTerminalState("RUNNING"));
+    // *** CHANGED: Only set state to RUNNING for non-resume flows ***
+    // For resume flows, the state is already set to INSPECTION_REQUIRED in OperatorAuthDialog
+    if (!isResuming) {
+      // For normal first-off inspection completion, we directly set to RUNNING
+      dispatch(terminalActions.setTerminalState("RUNNING"));
+    }
 
     // Close operator auth dialog
     setShowOperatorAuthDialog(false);
@@ -164,6 +174,8 @@ export default function StateControlButtons() {
 
   // Handle resume operation
   const handleResume = () => {
+    console.log("Initiating job resume process");
+
     // Set resuming flag for OperatorAuthDialog
     setIsResuming(true);
 
