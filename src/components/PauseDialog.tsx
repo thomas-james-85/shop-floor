@@ -92,7 +92,7 @@ export default function PauseDialog({
               efficiencyResult.efficiencyMetrics
             ) {
               setEfficiencyMetrics(efficiencyResult.efficiencyMetrics);
-              // Don't immediately show - we'll show after pause log is created
+              // We'll show this after pause log creation
             }
           }
         }
@@ -160,6 +160,7 @@ export default function PauseDialog({
             reason,
             updatedJob: updatedJobData,
           });
+          return; // Don't proceed with onPause until efficiency is viewed
         } else {
           // No efficiency to show, complete pause immediately
           onPause(reason, updatedJobData);

@@ -132,11 +132,13 @@ export default function CompletionDialog({
         console.log("Job updated successfully:", jobResult.updatedJob);
       }
 
-      // If we're not showing efficiency metrics, complete right away
-      if (!showEfficiency) {
-        onComplete(qty);
-      }
-      // Otherwise, completion will happen in handleEfficiencyClose
+      // REMOVED: Don't check showEfficiency here to avoid race condition
+      // if (!showEfficiency) {
+      //   onComplete(qty);
+      // }
+
+      // We'll only call onComplete in handleEfficiencyClose or
+      // in the explicit "no efficiency metrics" case above
     } catch (error) {
       console.error("Completion Error:", error);
       setError("An error occurred. Please try again.");

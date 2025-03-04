@@ -118,9 +118,9 @@ export default function EfficiencyDisplay({
             <div className="mt-6 flex justify-center">
               <button
                 onClick={onClose}
-                className="px-6 py-3 bg-blue-600 text-white text-lg font-bold rounded-lg hover:bg-blue-700 shadow-md transition-colors"
+                className="px-6 py-4 bg-blue-600 text-white text-xl font-bold rounded-lg hover:bg-blue-700 shadow-lg transition-colors transform hover:scale-105 active:scale-95 animate-pulse"
               >
-                OK
+                Continue
               </button>
             </div>
           </div>

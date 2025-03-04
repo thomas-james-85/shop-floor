@@ -104,22 +104,17 @@ export default function AbandonDialog({
               });
               // Show the efficiency display
               setShowEfficiency(true);
-            } else {
-              // If efficiency logging fails, still continue with abandonment
-              onAbandon(qty, reason);
+              return; // Exit early - we'll call onAbandon in handleEfficiencyClose
             }
           }
-        } else {
-          // No efficiency to display, just abandon
-          onAbandon(parseInt(completedQty) || 0, reason);
         }
+
+        // If we didn't show efficiency (either no data or calculation failed)
+        onAbandon(parseInt(completedQty) || 0, reason);
       } else {
         // No active log or no need for efficiency, just abandon
         onAbandon(parseInt(completedQty) || 0, reason);
       }
-
-      // If we're not showing efficiency, we'll call onAbandon above
-      // Otherwise we'll call it in handleEfficiencyClose
     } catch (error) {
       console.error("Error during abandon process:", error);
       setError("An error occurred. Please try again.");
