@@ -39,7 +39,6 @@ export default function InspectionDialog({
   const [showEfficiency, setShowEfficiency] = useState<boolean>(false);
   const [efficiencyMetrics, setEfficiencyMetrics] =
     useState<EfficiencyMetrics | null>(null);
-  const [inspectionPassed, setInspectionPassed] = useState<boolean>(false);
 
   const handleInspectorScan = async () => {
     if (!employeeId.trim()) {
@@ -141,7 +140,6 @@ export default function InspectionDialog({
   };
 
   const handleInspectionPass = async () => {
-    setInspectionPassed(true);
     setLoading(true);
 
     if (inspectionLogId) {
