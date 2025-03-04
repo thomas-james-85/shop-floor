@@ -7,7 +7,11 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { authenticateUser } from "@/utils/authenticateUser";
 import { useTerminal, terminalActions } from "@/contexts/terminalContext";
-import { completeInspection, completeSetupLog } from "@/utils/jobLogs";
+import {
+  completeInspection,
+  completeSetupLog,
+  getJobLogById,
+} from "@/utils/jobLogs";
 import { EfficiencyMetrics } from "@/utils/efficiencyCalculator";
 import { getEfficiencyForJobLog } from "@/utils/efficiencyLogger";
 import EfficiencyDisplay from "./EfficiencyDisplay";
@@ -50,12 +54,39 @@ export default function InspectionDialog({
     setError("");
 
     try {
+      // First, authenticate that the employee has inspection rights
       const result = await authenticateUser(employeeId, "can_inspect");
 
       if (!result.success) {
         setError(result.error || "Authentication failed");
         setLoading(false);
         return;
+      }
+
+      // For first-off inspection, check if this is the same person who performed the setup
+      if (
+        inspectionType === "1st_off" &&
+        state.activeLogId &&
+        state.activeLogState === "SETUP"
+      ) {
+        // Get the setup log to check who performed it
+        const setupLogResult = await getJobLogById(state.activeLogId);
+
+        if (setupLogResult.success && setupLogResult.log) {
+          const setupLog = setupLogResult.log;
+          const setupUserId = setupLog.user_id as string;
+
+          // If the inspector is the same person who performed the setup, reject it
+          if (setupUserId === employeeId) {
+            setError(
+              "The person who performed the setup cannot inspect their own work"
+            );
+            setLoading(false);
+            return;
+          }
+        } else {
+          console.error("Failed to retrieve setup log:", setupLogResult.error);
+        }
       }
 
       // Set inspector name
@@ -291,6 +322,12 @@ export default function InspectionDialog({
                   Please scan inspector ID to verify and inspect the{" "}
                   {inspectionType === "1st_off" ? "setup" : "production"}
                 </p>
+                {inspectionType === "1st_off" && (
+                  <p className="text-center text-sm text-orange-600 font-medium mb-2">
+                    Note: The person who performed the setup cannot inspect
+                    their own work
+                  </p>
+                )}
 
                 {error && <p className="text-red-500 text-sm">{error}</p>}
 
