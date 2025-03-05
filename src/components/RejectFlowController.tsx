@@ -9,7 +9,11 @@ import RejectReasonDialog, { RejectReason } from "./RejectReasonDialog";
 import RejectQuantityDialog from "./RejectQuantityDialog";
 import RejectSummaryDialog from "./RejectSummaryDialog";
 import RejectSuccessDialog from "./RejectSuccessDialog";
-import { RejectData, createReject, getRejectReasons } from "@/utils/rejectService";
+import {
+  RejectData,
+  createReject,
+  getRejectReasons,
+} from "@/utils/rejectService";
 
 type RejectFlowProps = {
   jobData: JobData;
@@ -21,12 +25,12 @@ type RejectFlowProps = {
   onCancel: () => void;
 };
 
-type FlowStep = 
-  | "confirmation" 
-  | "approval" 
-  | "reason" 
-  | "quantity" 
-  | "summary" 
+type FlowStep =
+  | "confirmation"
+  | "approval"
+  | "reason"
+  | "quantity"
+  | "summary"
   | "success";
 
 export default function RejectFlowController({
@@ -40,7 +44,7 @@ export default function RejectFlowController({
 }: RejectFlowProps) {
   // Flow control state
   const [currentStep, setCurrentStep] = useState<FlowStep>("confirmation");
-  
+
   // Data collection state
   const [supervisorId, setSupervisorId] = useState<string>("");
   const [supervisorName, setSupervisorName] = useState<string>("");
@@ -58,7 +62,7 @@ export default function RejectFlowController({
   // Load available reasons for this operation
   const [availableReasons, setAvailableReasons] = useState<RejectReason[]>([]);
   const [isLoadingReasons, setIsLoadingReasons] = useState<boolean>(false);
-  
+
   // Fetch reasons when component mounts
   useEffect(() => {
     const fetchReasons = async () => {
@@ -72,7 +76,7 @@ export default function RejectFlowController({
             console.error("Failed to load reject reasons:", result.error);
             // Add a default "Other" reason if we couldn't load any
             setAvailableReasons([
-              { id: 99, name: "Other", description: "Reason not listed" }
+              { id: 99, name: "Other", description: "Reason not listed" },
             ]);
           }
         } catch (error) {
@@ -82,12 +86,15 @@ export default function RejectFlowController({
         }
       }
     };
-    
+
     fetchReasons();
   }, [jobData]);
-  
+
   // Submit reject to the backend
-  const submitReject = async (): Promise<{ rejectId: number, emailSent: boolean }> => {
+  const submitReject = async (): Promise<{
+    rejectId: number;
+    emailSent: boolean;
+  }> => {
     // Prepare the request data
     const rejectRequestData: RejectData = {
       customerName: jobData.customer_name,
@@ -105,17 +112,17 @@ export default function RejectFlowController({
       machineName: terminalData.terminalName || "",
       operationCode: jobData.op_code,
     };
-    
+
     // Call the service
     const result = await createReject(rejectRequestData);
-    
+
     if (!result.success) {
       throw new Error(result.error || "Failed to create remanufacture request");
     }
-    
-    return { 
-      rejectId: result.rejectId || 0, 
-      emailSent: result.emailSent || false 
+
+    return {
+      rejectId: result.rejectId || 0,
+      emailSent: result.emailSent || false,
     };
   };
 
@@ -134,7 +141,7 @@ export default function RejectFlowController({
   // Handle reason selection
   const handleReasonSelected = (id: number, name: string, custom?: string) => {
     setReasonId(id);
-    setReasonName(name);
+    setReasonName(name); // This will be the actual text to use (either standard reason or custom text)
     if (custom) {
       setCustomReason(custom);
     }
@@ -152,11 +159,11 @@ export default function RejectFlowController({
     try {
       // Submit the reject to the backend
       const result = await submitReject();
-      
+
       // Store the result data
       setRejectId(result.rejectId);
       setEmailSent(result.emailSent);
-      
+
       // Move to success step
       setCurrentStep("success");
     } catch (error) {
@@ -188,7 +195,7 @@ export default function RejectFlowController({
       machineId: terminalData.terminalId?.toString() || "",
       operationCode: jobData.op_code,
     };
-    
+
     // Complete the flow with the reject data
     onComplete(rejectData);
   };
@@ -246,7 +253,8 @@ export default function RejectFlowController({
           rejectDetails={{
             supervisorName,
             operatorName,
-            reason: reasonName === "Other" ? `Other: ${customReason}` : reasonName,
+            reason:
+              reasonName === "Other" ? `Other: ${customReason}` : reasonName,
             quantity: remanufactureQty,
             operationCode: jobData.op_code,
             machineId: terminalData.terminalId?.toString() || "",
