@@ -11,7 +11,9 @@ import { updateJobCompletion } from "@/utils/jobUpdates";
 import { EfficiencyMetrics } from "@/utils/efficiencyCalculator";
 import { logEfficiency } from "@/utils/efficiencyLogger";
 import EfficiencyDisplay from "./EfficiencyDisplay";
+// Import RejectFlowController component
 import RejectFlowController from "./RejectFlowController";
+// Import RejectData type from rejectService
 import { RejectData } from "@/utils/rejectService";
 
 type CompletionDialogProps = {
