@@ -15,6 +15,7 @@ interface JobLogParams {
   inspection_passed?: boolean;
   inspection_type?: "1st_off" | "in_process";
   inspection_qty?: number;
+  operation_id?: number; // Added operation_id
 }
 
 // This extended interface allows for setting end_time to boolean for the convenience flag
@@ -201,6 +202,7 @@ export const startSetupLog = async (
     user_id: setterId,
     machine_id: terminalData.terminalId?.toString() || "",
     state: "SETUP",
+    operation_id: terminalData.operationId || 1,
   });
 };
 
@@ -234,6 +236,7 @@ export const createInspectionLog = async (
     inspection_type: inspectionType,
     inspection_qty: inspectionType === "1st_off" ? 1 : undefined,
     comments,
+    operation_id: terminalData.operationId || 1,
   });
 
   return {
@@ -386,6 +389,7 @@ export const startRunningLog = async (
     user_id: operatorId,
     machine_id: terminalData.terminalId?.toString() || "",
     state: "RUNNING",
+    operation_id: terminalData.operationId || 1,
   });
 };
 
@@ -553,6 +557,7 @@ export const pauseJob = async (
       machine_id: terminalData.terminalId?.toString() || "",
       state: "PAUSED",
       comments: pauseReason,
+      operation_id: terminalData.operationId || 1,
     });
 
     return {

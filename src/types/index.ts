@@ -2,6 +2,7 @@ export type TerminalData = {
     terminalId: number | null,
     terminalName: string | null,
     operationCode: string | null,
+    operationId: number | null,
     loggedInUser: string | null,
     terminalState:
       | "IDLE"

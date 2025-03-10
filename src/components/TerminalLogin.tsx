@@ -52,6 +52,7 @@ export default function TerminalLogin() {
         terminalId: parseInt(terminalId),
         terminalName: data.terminal_name,
         operationCode: data.operation_code,
+        operationId: data.operation_id,
         terminalState: "IDLE",
         lastStateChange: new Date(),
       };

@@ -14,8 +14,11 @@ export async function POST(req: Request) {
 
     // Query database for terminal details
     const result = await db.query(
-      `SELECT terminal_id, terminal_name, operation_code, password, active 
-             FROM terminals WHERE terminal_id = $1`,
+      `SELECT t.terminal_id, t.terminal_name, t.operation_code, t.password, t.active, 
+              o.operation_id
+       FROM terminals t
+       LEFT JOIN operations o ON t.operation_code = o.operation_code
+       WHERE t.terminal_id = $1`,
       [terminal_id]
     );
 
@@ -29,6 +32,7 @@ export async function POST(req: Request) {
     const {
       terminal_name,
       operation_code,
+      operation_id,
       password: storedPassword,
       active,
     } = result.rows[0];
@@ -51,6 +55,7 @@ export async function POST(req: Request) {
       terminal_id,
       terminal_name,
       operation_code,
+      operation_id,
     });
   } catch (error) {
     console.error("Login Error:", error);

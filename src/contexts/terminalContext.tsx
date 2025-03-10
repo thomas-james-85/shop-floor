@@ -44,6 +44,7 @@ const initialState: AppState = {
     terminalId: null,
     terminalName: null,
     operationCode: null,
+    operationId: null, // Added operationId
     loggedInUser: null,
     terminalState: "IDLE",
     lastStateChange: null,
