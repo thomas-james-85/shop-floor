@@ -17,6 +17,11 @@ export async function POST(req: Request) {
     // Assuming scan format contains the route card
     // This may need adjustment based on actual barcode format
     const route_card = scan;
+    
+    // Try to parse the route card as an integer if possible
+    // This handles cases where the scan might contain non-integer characters
+    let parsedRouteCard = parseInt(route_card);
+    const isValidRouteCard = !isNaN(parsedRouteCard);
 
     // Construct lookup_code
     const lookup_code = `${scan}-${operation_code}`;
@@ -39,12 +44,24 @@ export async function POST(req: Request) {
     }
 
     // If exact lookup fails, check if the route card exists
+    // Only proceed with the integer query if the route_card is a valid integer
+    if (!isValidRouteCard) {
+      return NextResponse.json(
+        { 
+          error: "Invalid route card format",
+          code: "INVALID_FORMAT",
+          details: "Route card must be a valid integer"
+        }, 
+        { status: 400 }
+      );
+    }
+
     const routeCardResult = await db.query(
       `SELECT 
         op_code, description, contract_number
       FROM jobs
       WHERE route_card = $1`,
-      [route_card]
+      [parsedRouteCard]
     );
 
     if (routeCardResult.rowCount === 0) {
