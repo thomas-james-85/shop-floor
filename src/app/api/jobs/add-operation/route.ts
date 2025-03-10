@@ -21,7 +21,10 @@ export async function POST(req: Request) {
       );
     }
 
-    // Generate lookup_code
+    // Parse route_card to integer (remove any non-numeric parts)
+    const routeCardNumber = parseInt(route_card.toString().split('-')[0]);
+    
+    // Generate lookup_code - keep original format for lookup code
     const lookup_code = `${route_card}-${operation_code}`;
 
     // Check if operation already exists
@@ -38,6 +41,7 @@ export async function POST(req: Request) {
     }
 
     // Fetch a sample job for this route card to copy basic details
+    
     const sampleJobResult = await db.query(
       `SELECT 
         contract_number, part_number, customer_name, 
@@ -45,7 +49,7 @@ export async function POST(req: Request) {
       FROM jobs 
       WHERE route_card = $1 
       LIMIT 1`,
-      [route_card]
+      [routeCardNumber]
     );
 
     // If no sample job, we can't add the operation
@@ -84,7 +88,7 @@ export async function POST(req: Request) {
         TRUE, $11, $12, $13, $14, NOW()
       ) RETURNING *`,
       [
-        route_card,
+        routeCardNumber, // Use parsed route card number
         finalContractNumber,
         operation_code,
         lookup_code,
