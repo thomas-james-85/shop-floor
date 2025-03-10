@@ -17,7 +17,8 @@ export async function POST(req: Request) {
       `SELECT t.terminal_id, t.terminal_name, t.operation_code, t.password, t.active, 
               o.operation_id
        FROM terminals t
-       LEFT JOIN operations o ON t.operation_code = o.operation_code
+       LEFT JOIN e2i_operations e ON t.operation_code = e.e2i_code
+       LEFT JOIN operations o ON e.operation_id = o.operation_id
        WHERE t.terminal_id = $1`,
       [terminal_id]
     );
