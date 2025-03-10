@@ -33,7 +33,7 @@ export async function POST(req: Request) {
       [lookup_code]
     );
 
-    if (checkExists.rowCount > 0) {
+    if (checkExists.rowCount !== null && checkExists.rowCount > 0) {
       return NextResponse.json(
         { error: "Operation already exists for this job" },
         { status: 409 }
