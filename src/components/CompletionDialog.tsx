@@ -11,7 +11,8 @@ import { updateJobCompletion } from "@/utils/jobUpdates";
 import { EfficiencyMetrics } from "@/utils/efficiencyCalculator";
 import { logEfficiency } from "@/utils/efficiencyLogger";
 import EfficiencyDisplay from "./EfficiencyDisplay";
-import RejectFlowController, { RejectData } from "./RejectFlowController";
+import RejectFlowController from "./RejectFlowController";
+import { RejectData } from "@/utils/rejectService";
 
 type CompletionDialogProps = {
   onComplete: (completedQty: number) => void;

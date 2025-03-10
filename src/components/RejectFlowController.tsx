@@ -176,17 +176,19 @@ export default function RejectFlowController({
   const handleSuccessClose = () => {
     // Create the complete reject data object
     const rejectData: RejectData = {
-      rejectId,
       customerName: jobData.customer_name,
       contractNumber: parseInt(jobData.contract_number),
       routeCard: parseInt(jobData.route_card),
       partNumber: jobData.part_number,
       qtyRejected: remainingBalance,
       operatorId: operatorId,
+      operatorName: operatorName,
       supervisorId: supervisorId,
+      supervisorName: supervisorName,
       reason: reasonName === "Other" ? customReason : reasonName,
       remanufactureQty: remanufactureQty,
       machineId: terminalData.terminalId?.toString() || "",
+      machineName: terminalData.terminalName || "",
       operationCode: jobData.op_code,
     };
 

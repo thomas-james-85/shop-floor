@@ -16,7 +16,15 @@ export default function EmailTestPanel() {
     loading: boolean;
     success?: boolean;
     message?: string;
-    config?: Record<string, unknown>;
+    config?: {
+      host: string;
+      port: string | number;
+      secure: boolean;
+      user: string;
+      recipientEmails?: string[];
+      ccEmails?: string[];
+      bccEmails?: string[];
+    };
   }>({ loading: false });
 
   const [sendStatus, setSendStatus] = useState<{
@@ -138,14 +146,14 @@ export default function EmailTestPanel() {
                   : "None configured"}
               </div>
 
-              {testStatus.config.ccEmails?.length > 0 && (
+              {testStatus.config.ccEmails && testStatus.config.ccEmails.length > 0 && (
                 <>
                   <div className="font-medium">CC:</div>
                   <div>{testStatus.config.ccEmails.join(", ")}</div>
                 </>
               )}
 
-              {testStatus.config.bccEmails?.length > 0 && (
+              {testStatus.config.bccEmails && testStatus.config.bccEmails.length > 0 && (
                 <>
                   <div className="font-medium">BCC:</div>
                   <div>{testStatus.config.bccEmails.join(", ")}</div>

@@ -138,8 +138,8 @@ export default function ScanJobDialog() {
         <JobNotFoundDialog 
           onClose={handleCloseDialogs} 
           routeCard={routeCardData.route_card || barcode}
-          operationCode={state.terminal.operationCode}
-          terminalName={state.terminal.terminalName}
+          operationCode={state.terminal.operationCode || ""}
+          terminalName={state.terminal.terminalName || ""}
         />
       )}
 
@@ -148,11 +148,11 @@ export default function ScanJobDialog() {
         <AddOperationDialog 
           routeCard={routeCardData.route_card || barcode}
           contractNumber={routeCardData.contract_number || ""}
-          operationCode={routeCardData.operation_code || state.terminal.operationCode}
+          operationCode={routeCardData.operation_code || (state.terminal.operationCode || "")}
           existingOperations={routeCardData.operations}
           onClose={handleCloseDialogs}
           onSuccess={handleOperationAdded}
-          userId={state.user?.userId}
+          userId={state.terminal.loggedInUser || ""}
         />
       )}
     </>
