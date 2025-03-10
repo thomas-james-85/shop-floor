@@ -65,11 +65,9 @@ export const handleJobScanned = async (
       };
     }
 
-    // Handle standard error case
-    console.error(`API Error: ${data.error || "Unknown error"}`);
-    
+    // Handle error cases
     if (data.code === "NOT_FOUND") {
-      // Don't show alert for NOT_FOUND as we'll handle it with the dialog
+      // Don't show alert or log error for NOT_FOUND as we'll handle it with the dialog
       return { 
         exists: false,
         code: data.code,
@@ -77,7 +75,8 @@ export const handleJobScanned = async (
       };
     }
     
-    // For other errors, alert and return null
+    // For other errors, log error, alert and return null
+    console.error(`API Error: ${data.error || "Unknown error"}`);
     alert(`Error: ${data.error || "Unknown error"}`);
     return null;
   } catch (error) {
