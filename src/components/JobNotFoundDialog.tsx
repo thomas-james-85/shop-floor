@@ -24,10 +24,10 @@ export default function JobNotFoundDialog({
           <h2 className="text-2xl font-bold text-gray-900 mb-4">Job Not Found</h2>
           <div className="mb-6">
             <p className="text-gray-700 mb-2">
-              The job with route card <span className="font-medium">{routeCard}</span> was not found in the database.
+              The job with routecard-contract <span className="font-medium">{routeCard}</span> was not found in the database.
             </p>
             <p className="text-gray-600 text-sm mb-2">
-              This typically means the job has not been entered into the system yet.
+              An email has been sent to request it to be added.
             </p>
             
             {operationCode && (
