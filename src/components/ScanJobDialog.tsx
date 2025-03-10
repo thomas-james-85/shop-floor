@@ -138,6 +138,8 @@ export default function ScanJobDialog() {
         <JobNotFoundDialog 
           onClose={handleCloseDialogs} 
           routeCard={routeCardData.route_card || barcode}
+          operationCode={state.terminal.operationCode}
+          terminalName={state.terminal.terminalName}
         />
       )}
 

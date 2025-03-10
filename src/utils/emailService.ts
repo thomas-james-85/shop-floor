@@ -76,6 +76,14 @@ export type RejectEmailData = {
   createdAt?: Date | string;
 };
 
+export type JobNotFoundEmailData = {
+  routeCard: string;
+  operationCode: string;
+  terminalName?: string;
+  userName?: string;
+  scannedAt?: Date | string;
+};
+
 /**
  * Formats the remanufacture email HTML content
  */
@@ -264,6 +272,165 @@ export async function sendRemanufactureEmail(data: RejectEmailData): Promise<{
         ? emailConfig.bccEmails.join(",")
         : undefined,
       subject: `Remanufacture Request #${data.rejectId} - ${data.partNumber}`,
+      text: textContent,
+      html: htmlContent,
+    };
+
+    // Send the email
+    const info = await transporter.sendMail(mailOptions);
+
+    console.log("Email sent successfully:", info.messageId);
+
+    return {
+      success: true,
+      messageId: info.messageId,
+    };
+  } catch (error) {
+    console.error("Email sending error:", error);
+    return {
+      success: false,
+      error:
+        error instanceof Error ? error.message : "Unknown error sending email",
+    };
+  }
+}
+
+/**
+ * Formats the job not found email HTML content
+ */
+const formatJobNotFoundEmailHtml = (data: JobNotFoundEmailData): string => {
+  const date = data.scannedAt
+    ? new Date(data.scannedAt).toLocaleString()
+    : new Date().toLocaleString();
+
+  return `
+    <html>
+      <head>
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          h1 { color: #2a5885; font-size: 24px; margin-bottom: 20px; }
+          h2 { color: #2a5885; font-size: 18px; margin-top: 25px; }
+          .info-group { margin-bottom: 15px; }
+          .info-row { display: flex; margin-bottom: 8px; }
+          .label { font-weight: bold; width: 170px; }
+          .value { flex: 1; }
+          .alert { background-color: #f8d7da; color: #721c24; padding: 10px; border-radius: 4px; margin: 15px 0; }
+          .footer { margin-top: 30px; font-size: 12px; color: #777; border-top: 1px solid #eee; padding-top: 15px; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <h1>Job Not Found Alert</h1>
+          
+          <div class="alert">
+            <strong>Action Required:</strong> A job scan failed because the route card was not found in the database.
+          </div>
+          
+          <div class="info-group">
+            <div class="info-row">
+              <div class="label">Date:</div>
+              <div class="value">${date}</div>
+            </div>
+          </div>
+          
+          <h2>Scan Information</h2>
+          <div class="info-group">
+            <div class="info-row">
+              <div class="label">Route Card:</div>
+              <div class="value">${data.routeCard}</div>
+            </div>
+            <div class="info-row">
+              <div class="label">Operation Code:</div>
+              <div class="value">${data.operationCode}</div>
+            </div>
+            ${data.terminalName ? `
+            <div class="info-row">
+              <div class="label">Terminal:</div>
+              <div class="value">${data.terminalName}</div>
+            </div>` : ''}
+            ${data.userName ? `
+            <div class="info-row">
+              <div class="label">User:</div>
+              <div class="value">${data.userName}</div>
+            </div>` : ''}
+          </div>
+          
+          <div class="footer">
+            <p>This is an automated notification from the Manufacturing Terminal System. Please do not reply to this email.</p>
+          </div>
+        </div>
+      </body>
+    </html>
+  `;
+};
+
+/**
+ * Formats the job not found email plain text content (as fallback)
+ */
+const formatJobNotFoundEmailText = (data: JobNotFoundEmailData): string => {
+  const date = data.scannedAt
+    ? new Date(data.scannedAt).toLocaleString()
+    : new Date().toLocaleString();
+
+  return `
+JOB NOT FOUND ALERT
+
+ACTION REQUIRED: A job scan failed because the route card was not found in the database.
+
+SCAN DETAILS:
+- Date: ${date}
+- Route Card: ${data.routeCard}
+- Operation Code: ${data.operationCode}
+${data.terminalName ? `- Terminal: ${data.terminalName}` : ''}
+${data.userName ? `- User: ${data.userName}` : ''}
+
+This is an automated notification from the Manufacturing Terminal System. Please do not reply to this email.
+`;
+};
+
+/**
+ * Sends email notification when a job is not found
+ */
+export async function sendJobNotFoundEmail(data: JobNotFoundEmailData): Promise<{
+  success: boolean;
+  messageId?: string;
+  error?: string;
+}> {
+  try {
+    // Check if email is configured
+    if (
+      !emailConfig.user ||
+      !emailConfig.password ||
+      emailConfig.recipientEmails.length === 0
+    ) {
+      console.warn("Email configuration incomplete. Email will not be sent.");
+      return {
+        success: false,
+        error: "Email not configured. Check environment variables.",
+      };
+    }
+
+    console.log("Sending job not found email with data:", data);
+
+    // Create the email transporter
+    const transporter = createTransporter();
+
+    // Prepare email content
+    const htmlContent = formatJobNotFoundEmailHtml(data);
+    const textContent = formatJobNotFoundEmailText(data);
+
+    // Set up email data
+    const mailOptions = {
+      from: `"Manufacturing Terminal" <${emailConfig.from}>`,
+      to: emailConfig.recipientEmails.join(","),
+      cc: emailConfig.ccEmails?.length
+        ? emailConfig.ccEmails.join(",")
+        : undefined,
+      bcc: emailConfig.bccEmails?.length
+        ? emailConfig.bccEmails.join(",")
+        : undefined,
+      subject: `Job Not Found Alert - Route Card: ${data.routeCard}`,
       text: textContent,
       html: htmlContent,
     };

@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import db from "@/lib/db";
+import { sendJobNotFoundEmail } from "@/utils/emailService";
 
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { scan, operation_code } = body;
+    const { scan, operation_code, terminal_name, user_name } = body;
 
     if (!scan || !operation_code) {
       return NextResponse.json(
@@ -20,7 +21,7 @@ export async function POST(req: Request) {
     
     // Try to parse the route card as an integer if possible
     // This handles cases where the scan might contain non-integer characters
-    let parsedRouteCard = parseInt(route_card);
+    const parsedRouteCard = parseInt(route_card);
     const isValidRouteCard = !isNaN(parsedRouteCard);
 
     // Construct lookup_code
@@ -66,6 +67,24 @@ export async function POST(req: Request) {
 
     if (routeCardResult.rowCount === 0) {
       // Route card doesn't exist in database
+      
+      // Send email notification for job not found
+      if (operation_code !== "CHECK_ONLY") {
+        try {
+          await sendJobNotFoundEmail({
+            routeCard: route_card,
+            operationCode: operation_code,
+            terminalName: terminal_name,
+            userName: user_name,
+            scannedAt: new Date()
+          });
+          console.log(`Email notification sent for job not found: ${route_card}`);
+        } catch (emailError) {
+          console.error("Failed to send job not found email:", emailError);
+          // Continue with the response even if email fails
+        }
+      }
+      
       return NextResponse.json(
         { 
           error: "Job not found in database",

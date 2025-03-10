@@ -7,9 +7,16 @@ import { Card } from "@/components/ui/card";
 interface JobNotFoundDialogProps {
   onClose: () => void;
   routeCard: string;
+  terminalName?: string;
+  operationCode?: string;
 }
 
-export default function JobNotFoundDialog({ onClose, routeCard }: JobNotFoundDialogProps) {
+export default function JobNotFoundDialog({ 
+  onClose, 
+  routeCard,
+  terminalName,
+  operationCode 
+}: JobNotFoundDialogProps) {
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
       <Card className="w-full max-w-md p-6 bg-white shadow-lg rounded-lg">
@@ -19,8 +26,19 @@ export default function JobNotFoundDialog({ onClose, routeCard }: JobNotFoundDia
             <p className="text-gray-700 mb-2">
               The job with route card <span className="font-medium">{routeCard}</span> was not found in the database.
             </p>
-            <p className="text-gray-600 text-sm">
+            <p className="text-gray-600 text-sm mb-2">
               This typically means the job has not been entered into the system yet.
+            </p>
+            
+            {operationCode && (
+              <div className="text-left p-2 bg-gray-50 rounded mb-3 text-sm">
+                <p><span className="font-medium">Operation:</span> {operationCode}</p>
+                {terminalName && <p><span className="font-medium">Terminal:</span> {terminalName}</p>}
+              </div>
+            )}
+            
+            <p className="text-gray-600 text-sm bg-blue-50 p-2 rounded border border-blue-200">
+              <span className="font-medium">Note:</span> An email notification has been sent to the admin team about this missing job.
             </p>
           </div>
           

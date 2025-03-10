@@ -29,6 +29,8 @@ export const handleJobScanned = async (
       body: JSON.stringify({
         scan: barcode,
         operation_code: terminalData.operationCode,
+        terminal_name: terminalData.terminalName,
+        user_name: terminalData.userName,
       }),
     });
 
