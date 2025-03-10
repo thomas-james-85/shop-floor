@@ -44,7 +44,7 @@ export async function POST(req: Request) {
     
     const sampleJobResult = await db.query(
       `SELECT 
-        contract_number, part_number, customer_name, 
+        contract_number, part_number, customer_name, customer_code,
         quantity, description, due_date, balance
       FROM jobs 
       WHERE route_card = $1 
@@ -71,7 +71,8 @@ export async function POST(req: Request) {
         op_code, 
         lookup_code,
         part_number, 
-        customer_name, 
+        customer_name,
+        customer_code,
         quantity, 
         description,
         due_date, 
@@ -84,8 +85,8 @@ export async function POST(req: Request) {
         added_by,
         added_at
       ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'Ready', 
-        TRUE, $11, $12, $13, $14, NOW()
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'Ready', 
+        TRUE, $12, $13, $14, $15, NOW()
       ) RETURNING *`,
       [
         routeCardNumber, // Use parsed route card number
@@ -94,8 +95,9 @@ export async function POST(req: Request) {
         lookup_code,
         sampleJob.part_number,
         sampleJob.customer_name,
+        sampleJob.customer_code,
         sampleJob.quantity,
-        `User added operation: ${operation_code}`,
+        sampleJob.description,
         sampleJob.due_date,
         sampleJob.balance,
         one_off || false,
