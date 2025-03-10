@@ -1,5 +1,4 @@
 // src/utils/rejectService.ts
-import { RejectEmailData, sendRemanufactureEmail } from "./emailService";
 
 export type RejectData = {
   customerName: string;
@@ -73,30 +72,13 @@ export const createReject = async (
       };
     }
 
-    // Prepare email data
-    const emailData: RejectEmailData = {
-      rejectId: data.reject_id,
-      customerName: rejectData.customerName,
-      contractNumber,
-      routeCard,
-      partNumber: rejectData.partNumber,
-      qtyRejected: rejectData.qtyRejected,
-      remanufactureQty: rejectData.remanufactureQty,
-      operatorName: rejectData.operatorName,
-      supervisorName: rejectData.supervisorName,
-      reason: rejectData.reason,
-      operationCode: rejectData.operationCode,
-      machineName: rejectData.machineName || rejectData.machineId,
-      createdAt: data.created_at,
-    };
-
-    // Send notification email
-    const emailResult = await sendRemanufactureEmail(emailData);
+    // Email is now sent from the API endpoint
+    // Using the email_sent value returned from the API
 
     return {
       success: true,
       rejectId: data.reject_id,
-      emailSent: emailResult.success,
+      emailSent: data.email_sent,
     };
   } catch (error) {
     console.error("Remanufacture request error:", error);

@@ -1,6 +1,7 @@
 // src/app/api/rejects/route.ts
 import { NextResponse } from "next/server";
 import db from "@/lib/db";
+import { RejectEmailData, sendRemanufactureEmail } from "@/utils/emailService";
 
 // POST endpoint to create a new reject record
 export async function POST(req: Request) {
@@ -17,6 +18,9 @@ export async function POST(req: Request) {
       remanufacture_qty,
       machine_id,
       operation_code,
+      operator_name,
+      supervisor_name,
+      machine_name,
     } = await req.json();
 
     // Validate required fields
@@ -70,14 +74,33 @@ export async function POST(req: Request) {
       ]
     );
 
-    // Return the new reject ID and timestamp
+    // Prepare and send the email notification
+    const emailData: RejectEmailData = {
+      rejectId: result.rows[0].reject_id,
+      customerName: customer_name,
+      contractNumber: contract_number,
+      routeCard: route_card,
+      partNumber: part_number,
+      qtyRejected: qty_rejected,
+      remanufactureQty: remanufacture_qty,
+      operatorName: operator_name || operator_id,
+      supervisorName: supervisor_name || supervisor_id,
+      reason: reason,
+      operationCode: operation_code,
+      machineName: machine_name || machine_id,
+      createdAt: result.rows[0].created_at,
+    };
+
+    // Send the email notification
+    const emailResult = await sendRemanufactureEmail(emailData);
+
+    // Return the new reject ID and timestamp with actual email status
     return NextResponse.json({
       success: true,
       message: "Remanufacture request created successfully",
       reject_id: result.rows[0].reject_id,
       created_at: result.rows[0].created_at,
-      // In a real implementation, you'd include email status here
-      email_sent: true, // Mocked for now
+      email_sent: emailResult.success,
     });
   } catch (error) {
     console.error("Reject Creation Error:", error);
