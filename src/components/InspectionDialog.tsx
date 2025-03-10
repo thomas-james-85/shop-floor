@@ -109,6 +109,8 @@ export default function InspectionDialog({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             lookup_code,
+            contract_number: state.currentJob?.contract_number,
+            route_card: state.currentJob?.route_card,
             user_id: employeeId,
             machine_id: state.terminal.terminalId,
             state: "INSPECTION",
@@ -137,6 +139,8 @@ export default function InspectionDialog({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             lookup_code,
+            contract_number: state.currentJob.contract_number,
+            route_card: state.currentJob.route_card,
             user_id: employeeId,
             machine_id: state.terminal.terminalId,
             state: "INSPECTION",
