@@ -26,7 +26,7 @@ export async function POST(req: Request) {
 
     // Check if operation already exists
     const checkExists = await db.query(
-      `SELECT id FROM jobs WHERE lookup_code = $1`,
+      `SELECT lookup_code FROM jobs WHERE lookup_code = $1`,
       [lookup_code]
     );
 
