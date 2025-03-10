@@ -216,7 +216,9 @@ export default function CompletionDialog({
   const handleRejectFlowCancel = () => {
     console.log("Reject flow cancelled");
     setShowRejectFlow(false);
-    setIsLogging(false);
+    
+    // Continue with job completion when user clicks "No, Complete As Is"
+    proceedWithCompletion(validatedQty);
   };
 
   // Handle Enter key press
