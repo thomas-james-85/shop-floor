@@ -51,7 +51,7 @@ export async function GET(req: Request) {
        LIMIT 1`
     );
 
-    let reasons = reasonsQuery.rows;
+    const reasons = reasonsQuery.rows;
 
     // Add "Other" reason if it exists and is not already included
     if (otherReasonQuery.rowCount > 0) {

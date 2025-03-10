@@ -16,7 +16,7 @@ export default function EmailTestPanel() {
     loading: boolean;
     success?: boolean;
     message?: string;
-    config?: any;
+    config?: Record<string, unknown>;
   }>({ loading: false });
 
   const [sendStatus, setSendStatus] = useState<{

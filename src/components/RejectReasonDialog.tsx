@@ -43,17 +43,6 @@ export default function RejectReasonDialog({
   // State for reasons (if fetched internally)
   const [reasons, setReasons] = useState<RejectReason[]>(initialReasons || []);
 
-  // Fetch reasons if not provided
-  useEffect(() => {
-    if (!initialReasons) {
-      fetchRejectReasons();
-    } else {
-      // Add the "Other" option if it's not already in the list
-      const reasonsWithOther = addOtherOption(initialReasons);
-      setReasons(reasonsWithOther);
-    }
-  }, [initialReasons, operationCode]);
-
   // Helper function to add the "Other" option to any list of reasons
   const addOtherOption = (reasonsList: RejectReason[]): RejectReason[] => {
     // Check if "Other" is already in the list
@@ -73,68 +62,79 @@ export default function RejectReasonDialog({
     return reasonsList;
   };
 
-  // Function to fetch reject reasons from API
-  const fetchRejectReasons = async () => {
-    setLoading(true);
-    try {
-      // Call the API to get reasons for this operation code
-      const response = await fetch(
-        `/api/rejects/reasons?operation_code=${encodeURIComponent(
-          operationCode
-        )}`
-      );
-      const data = await response.json();
+  // Fetch reasons if not provided
+  useEffect(() => {
+    // Function to fetch reject reasons from API
+    const fetchRejectReasons = async () => {
+      setLoading(true);
+      try {
+        // Call the API to get reasons for this operation code
+        const response = await fetch(
+          `/api/rejects/reasons?operation_code=${encodeURIComponent(
+            operationCode
+          )}`
+        );
+        const data = await response.json();
 
-      if (!response.ok) {
-        throw new Error(data.error || "Failed to fetch reasons");
+        if (!response.ok) {
+          throw new Error(data.error || "Failed to fetch reasons");
+        }
+
+        // Transform the API response to match our expected format
+        const apiReasons: RejectReason[] = data.reasons.map((reason: { reject_id: number; reject_name: string; description?: string }) => ({
+          id: reason.reject_id,
+          name: reason.reject_name,
+          description: reason.description,
+        }));
+
+        // Add the "Other" option
+        const reasonsWithOther = addOtherOption(apiReasons);
+        setReasons(reasonsWithOther);
+      } catch (error) {
+        console.error("Error fetching reject reasons:", error);
+        setError("Failed to load reject reasons");
+
+        // Fallback to a default set of reasons with "Other" option
+        setReasons([
+          {
+            id: 1,
+            name: "Incorrect dimensions",
+            description: "Part does not meet dimensional requirements",
+          },
+          {
+            id: 2,
+            name: "Surface finish issue",
+            description: "Surface quality below standard",
+          },
+          {
+            id: 3,
+            name: "Material defect",
+            description: "Raw material issue detected",
+          },
+          {
+            id: 4,
+            name: "Tool mark",
+            description: "Visible tool marks on finished part",
+          },
+          {
+            id: OTHER_REASON_ID,
+            name: "Other",
+            description: "Enter a custom reason not listed above",
+          },
+        ]);
+      } finally {
+        setLoading(false);
       }
+    };
 
-      // Transform the API response to match our expected format
-      const apiReasons: RejectReason[] = data.reasons.map((reason: any) => ({
-        id: reason.reject_id,
-        name: reason.reject_name,
-        description: reason.description,
-      }));
-
-      // Add the "Other" option
-      const reasonsWithOther = addOtherOption(apiReasons);
+    if (!initialReasons) {
+      fetchRejectReasons();
+    } else {
+      // Add the "Other" option if it's not already in the list
+      const reasonsWithOther = addOtherOption(initialReasons);
       setReasons(reasonsWithOther);
-    } catch (error) {
-      console.error("Error fetching reject reasons:", error);
-      setError("Failed to load reject reasons");
-
-      // Fallback to a default set of reasons with "Other" option
-      setReasons([
-        {
-          id: 1,
-          name: "Incorrect dimensions",
-          description: "Part does not meet dimensional requirements",
-        },
-        {
-          id: 2,
-          name: "Surface finish issue",
-          description: "Surface quality below standard",
-        },
-        {
-          id: 3,
-          name: "Material defect",
-          description: "Raw material issue detected",
-        },
-        {
-          id: 4,
-          name: "Tool mark",
-          description: "Visible tool marks on finished part",
-        },
-        {
-          id: OTHER_REASON_ID,
-          name: "Other",
-          description: "Enter a custom reason not listed above",
-        },
-      ]);
-    } finally {
-      setLoading(false);
     }
-  };
+  }, [initialReasons, operationCode]);
 
   // Check if the selected reason is "Other"
   const isOtherSelected =

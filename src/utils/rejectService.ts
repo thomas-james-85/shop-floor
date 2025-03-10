@@ -138,7 +138,7 @@ export const getRejectReasons = async (
     }
 
     // Transform the data to match the expected format
-    const reasons = data.reasons.map((reason: any) => ({
+    const reasons = data.reasons.map((reason: { reject_id: number; reject_name: string; description?: string }) => ({
       id: reason.reject_id,
       name: reason.reject_name,
       description: reason.description,

@@ -48,7 +48,6 @@ export default function RejectFlowController({
   // Data collection state
   const [supervisorId, setSupervisorId] = useState<string>("");
   const [supervisorName, setSupervisorName] = useState<string>("");
-  const [reasonId, setReasonId] = useState<number>(0);
   const [reasonName, setReasonName] = useState<string>("");
   const [customReason, setCustomReason] = useState<string>("");
   const [remanufactureQty, setRemanufactureQty] = useState<number>(0);
@@ -61,13 +60,11 @@ export default function RejectFlowController({
 
   // Load available reasons for this operation
   const [availableReasons, setAvailableReasons] = useState<RejectReason[]>([]);
-  const [isLoadingReasons, setIsLoadingReasons] = useState<boolean>(false);
 
   // Fetch reasons when component mounts
   useEffect(() => {
     const fetchReasons = async () => {
       if (jobData && jobData.op_code) {
-        setIsLoadingReasons(true);
         try {
           const result = await getRejectReasons(jobData.op_code);
           if (result.success && result.reasons) {
@@ -81,8 +78,6 @@ export default function RejectFlowController({
           }
         } catch (error) {
           console.error("Error fetching reasons:", error);
-        } finally {
-          setIsLoadingReasons(false);
         }
       }
     };
@@ -139,8 +134,7 @@ export default function RejectFlowController({
   };
 
   // Handle reason selection
-  const handleReasonSelected = (id: number, name: string, custom?: string) => {
-    setReasonId(id);
+  const handleReasonSelected = (_id: number, name: string, custom?: string) => {
     setReasonName(name); // This will be the actual text to use (either standard reason or custom text)
     if (custom) {
       setCustomReason(custom);
