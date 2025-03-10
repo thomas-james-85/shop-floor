@@ -69,9 +69,11 @@ export const handleJobScanned = async (
     console.error(`API Error: ${data.error || "Unknown error"}`);
     
     if (data.code === "NOT_FOUND") {
+      // Don't show alert for NOT_FOUND as we'll handle it with the dialog
       return { 
         exists: false,
-        code: data.code 
+        code: data.code,
+        route_card: barcode
       };
     }
     
