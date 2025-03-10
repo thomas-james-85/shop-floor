@@ -6,6 +6,8 @@ export async function POST(req: Request) {
   try {
     const {
       lookup_code,
+      contract_number,
+      route_card,
       user_id,
       machine_id,
       state,
@@ -30,12 +32,14 @@ export async function POST(req: Request) {
     // Insert new log
     const result = await db.query(
       `INSERT INTO job_logs 
-      (lookup_code, user_id, machine_id, state, start_time, end_time, 
+      (lookup_code, contract_number, route_card, user_id, machine_id, state, start_time, end_time, 
        completed_qty, comments, inspection_passed, inspection_type, inspection_qty, operation_id) 
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) 
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) 
       RETURNING log_id`,
       [
         lookup_code || null,
+        contract_number || null,
+        route_card || null,
         user_id,
         machine_id,
         state,
@@ -150,7 +154,7 @@ export async function GET(req: Request) {
     // If log_id is provided, fetch the specific log
     if (log_id) {
       const result = await db.query(
-        `SELECT * FROM job_logs WHERE log_id = $1`,
+        `SELECT *, contract_number, route_card FROM job_logs WHERE log_id = $1`,
         [log_id]
       );
 

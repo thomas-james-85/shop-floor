@@ -5,6 +5,8 @@ import { EfficiencyMetrics } from "./efficiencyCalculator";
 
 interface JobLogParams {
   lookup_code: string;
+  contract_number?: string; // Add contract number
+  route_card?: string;     // Add route card
   user_id: string;
   machine_id: string;
   state: "SETUP" | "RUNNING" | "PAUSED" | "INSPECTION";
@@ -199,6 +201,8 @@ export const startSetupLog = async (
 
   return createJobLog({
     lookup_code,
+    contract_number: jobData.contract_number,
+    route_card: jobData.route_card,
     user_id: setterId,
     machine_id: terminalData.terminalId?.toString() || "",
     state: "SETUP",
@@ -230,6 +234,8 @@ export const createInspectionLog = async (
 
   const inspectionResult = await createJobLog({
     lookup_code,
+    contract_number: jobData.contract_number,
+    route_card: jobData.route_card,
     user_id: inspectorId,
     machine_id: terminalData.terminalId?.toString() || "",
     state: "INSPECTION",
@@ -386,6 +392,8 @@ export const startRunningLog = async (
 
   return createJobLog({
     lookup_code,
+    contract_number: jobData.contract_number,
+    route_card: jobData.route_card,
     user_id: operatorId,
     machine_id: terminalData.terminalId?.toString() || "",
     state: "RUNNING",
@@ -553,6 +561,8 @@ export const pauseJob = async (
     // Then create the paused log
     const pauseResult = await createJobLog({
       lookup_code,
+      contract_number: jobData.contract_number,
+      route_card: jobData.route_card,
       user_id: operatorId,
       machine_id: terminalData.terminalId?.toString() || "",
       state: "PAUSED",
