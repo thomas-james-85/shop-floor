@@ -29,6 +29,7 @@ type ActionType =
   | { type: "SET_LOADING_JOB"; payload: boolean }
   | { type: "SET_LOADING_USER"; payload: boolean }
   | { type: "SET_ERROR"; payload: string | null }
+  | { type: "CLEAR_ERROR" }
   | { type: "RESET_TERMINAL" }
   | { type: "RESET_JOB" }
   | { type: "RESET_STATE" }
@@ -112,6 +113,12 @@ function terminalReducer(state: AppState, action: ActionType): AppState {
       return {
         ...state,
         error: action.payload,
+      };
+      
+    case "CLEAR_ERROR":
+      return {
+        ...state,
+        error: null,
       };
 
     case "RESET_TERMINAL":
@@ -274,6 +281,10 @@ export const terminalActions = {
   setError: (error: string | null) => ({
     type: "SET_ERROR" as const,
     payload: error,
+  }),
+  
+  clearError: () => ({
+    type: "CLEAR_ERROR" as const,
   }),
 
   setActiveLog: (logId: number, logState: AppState["activeLogState"]) => ({
